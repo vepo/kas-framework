@@ -1,0 +1,60 @@
+package io.vepo.maestro.experiment.data;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record TrainMoviment(@JsonProperty("train_id") String trainId,
+                            @JsonProperty("actual_timestamp") String actualTimestamp,
+                            @JsonProperty("loc_stanox") String locStanox,
+                            @JsonProperty("gbtt_timestamp") String gbttTimestamp,
+                            @JsonProperty("planned_timestamp") String plannedTimestamp,
+                            @JsonProperty("planned_event_type") String plannedEventType,
+                            @JsonProperty("event_type") String eventType,
+                            @JsonProperty("event_source") String eventSource,
+                            @JsonProperty("correction_ind") String correctionInd,
+                            @JsonProperty("offroute_ind") String offrouteInd,
+                            @JsonProperty("direction_ind") String directionInd,
+                            @JsonProperty("line_ind") String lineInd,
+                            @JsonProperty("platform") String platform,
+                            @JsonProperty("route") String route,
+                            @JsonProperty("train_service_code") String trainServiceCode,
+                            @JsonProperty("division_code") String divisionCode,
+                            @JsonProperty("toc_id") String tocId,
+                            @JsonProperty("timetable_variation") String timetableVariation,
+                            @JsonProperty("variation_status") String variationStatus,
+                            @JsonProperty("next_report_stanox") String nextReportStanox,
+                            @JsonProperty("next_report_run_time") String nextReportRunTime,
+                            @JsonProperty("train_terminated") String trainTerminated,
+                            @JsonProperty("delay_monitoring_point") String delayMonitoringPoint,
+                            @JsonProperty("reporting_stanox") String reportingStanox,
+                            @JsonProperty("auto_expected") String autoExpected,
+                            @JsonProperty("dep_timestamp") String depTimestamp,
+                            @JsonProperty("canx_timestamp") String canxTimestamp,
+                            @JsonProperty("canx_type") String canxType,
+                            @JsonProperty("canx_reason_code") String canxReasonCode,
+                            @JsonProperty("train_file_address") String trainFileAddress,
+                            @JsonProperty("schedule_wtt_id") String scheduleWttId,
+                            @JsonProperty("sched_origin_stanox") String schedOriginStanox,
+                            @JsonProperty("creation_timestamp") String creationTimestamp,
+                            @JsonProperty("origin_dep_timestamp") String originDepTimestamp,
+                            @JsonProperty("train_uid") String trainUid,
+                            @JsonProperty("schedule_start_date") String scheduleStartDate,
+                            @JsonProperty("schedule_end_date") String scheduleEndDate,
+                            @JsonProperty("schedule_source") String scheduleSource,
+                            @JsonProperty("schedule_type") String scheduleType,
+                            @JsonProperty("d1266_record_number") String d1266RecordNumber,
+                            @JsonProperty("tp_origin_timestamp") String tpOriginTimestamp,
+                            @JsonProperty("train_call_type") String trainCallType,
+                            @JsonProperty("train_call_mode") String trainCallMode,
+                            @JsonProperty("current_train_id") String currentTrainId,
+                            @JsonProperty("original_loc_stanox") String originalLocStanox,
+                            @JsonProperty("coo_timestamp") String cooTimestamp,
+                            @JsonProperty("reason_code") String reasonCode,
+                            @JsonProperty("orig_loc_timestamp") String origLocTimestamp,
+                            @JsonProperty("orig_loc_stanox") String origLocStanox,
+                            @JsonProperty("reinstatement_timestamp") String reinstatementTimestamp) {
+
+    public long publishTimestamp() {
+        return Long.valueOf(actualTimestamp);
+    }
+
+}

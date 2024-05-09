@@ -1,0 +1,5 @@
+#!/bin/bash -x
+set -e
+## 
+mvn clean install
+mvn -pl experiment/data-generator/ clean compile exec:java -Dexec.mainClass=io.vepo.kafka.stream.datagenerator.InjectData -Dexec.args="-d ./experiment/train-data/ -t 20 -r 1000 train" > inject.log &

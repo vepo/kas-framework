@@ -1,0 +1,126 @@
+package io.vepo.kafka.maestro.metrics;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class PerformanceOptimizer {
+    private static final Logger logger = LoggerFactory.getLogger(PerformanceOptimizer.class);
+    private int totalThreads = -1;
+    private int numberOfGroups = 2;
+    private Map<Integer, Map<String, Object>> consumerConfigs;
+    private Map<Integer, Map<String, List<PerformanceMetric>>> performanceHistory;
+
+    public PerformanceOptimizer() {
+        consumerConfigs = Collections.synchronizedMap(new HashMap<>());
+        performanceHistory = Collections.synchronizedMap(new HashMap<>());
+    }
+
+    private Set<String> importantConsumerMetrics = Set.of("records-consumed-rate",
+                                                          "bytes-consumed-rate",
+                                                          "request-latency-avg",
+                                                          "request-latency-max",
+                                                          "records-lag-max");
+
+    /**
+     * Need to determine if the metric is growing or decreasing. An rate algorithm
+     * neeed to be aware of outliers points.
+     * 
+     * 
+     * https://onlinelibrary.wiley.com/doi/10.1111/j.1744-7976.1985.tb02050.x
+     * 
+     * @param performanceMetric
+     */
+    public void feed(PerformanceMetric performanceMetric) {
+        // records-consumed-rate
+        // bytes-consumed-rate
+        if (importantConsumerMetrics.contains(performanceMetric.name())) {
+            var groupId = groupId(new StreamClientId(performanceMetric.tags().get("client-id")).threadId());
+            var metricHistory = performanceHistory.computeIfAbsent(groupId, (key) -> new HashMap<>())
+                                                  .computeIfAbsent(performanceMetric.name(), (key) -> new LinkedList<>());
+            if (performanceMetric.value() instanceof Double value && value.isNaN()) {
+                return;
+            }
+            metricHistory.add(performanceMetric);
+            while (metricHistory.size() > 100) {
+                metricHistory.removeFirst();
+            }
+
+            // calculate average value
+            if (metricHistory.size() > 0) {
+                if (metricHistory.getFirst().value() instanceof Double) {
+                    metricHistory.stream()
+                                 .mapToDouble(m -> (Double) m.value())
+                                 .average()
+                                 .ifPresent(average -> {
+                                     logger.info("Group {} average {} = (double) {}", groupId, performanceMetric.name(), average);
+                                 });
+                } else if (metricHistory.getFirst().value() instanceof Long) {
+                    metricHistory.stream()
+                                 .mapToLong(m -> (Long) m.value())
+                                 .average()
+                                 .ifPresent(average -> {
+                                     logger.info("Group {} average {} = (long) {}", groupId, performanceMetric.name(), average);
+                                 });
+                } else if (metricHistory.getFirst().value() instanceof Integer) {
+                    metricHistory.stream()
+                                 .mapToInt(m -> (Integer) m.value())
+                                 .average()
+                                 .ifPresent(average -> {
+                                     logger.info("Group {} average {} = (integer) {}", groupId, performanceMetric.name(), average);
+                                 });
+                }
+            }
+        }
+    }
+
+    public Map<String, Object> generateConsumerConfigs(int threadId, Map<String, Object> config) {
+        var newConfigs = new HashMap<>(config);
+        newConfigs.putAll(consumerConfigs.computeIfAbsent(groupId(threadId), (key) -> newConsumerConfig(key, config)));
+        return newConfigs;
+    }
+
+    private int groupId(int threadId) {
+        return threadId % numberOfGroups;
+    }
+
+    private Set<String> importantConsumerConfigs = Set.of(ConsumerConfig.MAX_POLL_RECORDS_CONFIG,
+                                                          ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG,
+                                                          ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG);
+
+    private Map<String, Object> newConsumerConfig(int groupId, Map<String, Object> config) {
+        // max.poll.interval.ms
+        // request.timeout.ms
+        // max.poll.records
+        if (groupId == 0) {
+            return new HashMap<>();
+        } else {
+            var changeConfigs = new HashMap<String, Object>();
+            // Random value between 90% and 110%
+            Function<String, Object> randomValue = key -> {
+                var previousValue = config.getOrDefault(key, ConsumerConfig.configDef().defaultValues().get(key));
+                if (previousValue instanceof String) {
+                    return (int) ((1.1 - (0.2 * Math.random())) * Integer.parseInt((String) previousValue));
+                } else if (previousValue instanceof Integer) {
+                    return (int) ((1.1 - (0.2 * Math.random())) * (Integer) previousValue);
+                } else {
+                    logger.warn("Invalid value for key {}: {}", key, previousValue);
+                    return previousValue;
+                }
+            };
+            importantConsumerConfigs.forEach(key -> changeConfigs.put(key, randomValue.apply(key)));
+            logger.info("Thread {} changed configs: {}", groupId, changeConfigs);
+            return changeConfigs;
+        }
+    }
+
+}

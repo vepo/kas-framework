@@ -1,0 +1,51 @@
+///usr/bin/env jbang "$0" "$@" ; exit $?
+
+import java.io.File;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.Writer;
+import java.io.StringWriter;
+
+public class TransformDataset {
+
+    public static void main(String... args) {
+        // read dataset/trafficspeed.xml
+        try {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            DocumentBuilder db = dbf.newDocumentBuilder();
+
+            Document doc = db.parse(new File("dataset/trafficspeed.xml"));
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter("dataset/trafficspeed-pretty.xml"))) {
+                writer.write(prettyPrintByTransformer(doc, 2, false));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static String prettyPrintByTransformer(Document document, int indent, boolean ignoreDeclaration) {
+
+        try {
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            transformerFactory.setAttribute("indent-number", indent);
+            Transformer transformer = transformerFactory.newTransformer();
+            transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, ignoreDeclaration ? "yes" : "no");
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+    
+            Writer out = new StringWriter();
+            transformer.transform(new DOMSource(document), new StreamResult(out));
+            return out.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Error occurs when pretty-printing xml:\n" + document, e);
+        }
+    }
+}

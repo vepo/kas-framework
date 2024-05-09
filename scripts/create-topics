@@ -1,5 +1,6 @@
 #!/bin/bash
 
-docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic speed
-docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic flow
-docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic observation
+##docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic speed          --partitions 160 --replication-factor 3
+##docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic flow           --partitions 160 --replication-factor 3
+##docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic observation    --partitions 160 --replication-factor 3
+docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic train.moviment --partitions 160 --replication-factor 3

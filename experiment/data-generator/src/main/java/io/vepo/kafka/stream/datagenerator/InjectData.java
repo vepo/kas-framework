@@ -4,18 +4,17 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -30,7 +29,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -85,12 +83,10 @@ public class InjectData implements Callable<Integer> {
         }
     }
 
-    private static final Logger LOGGER = org.slf4j.LoggerFactory.getLogger(InjectData.class);
-
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")
-                                                                        .withZone(ZoneId.systemDefault());
+    private static final Logger logger = org.slf4j.LoggerFactory.getLogger(InjectData.class);
 
     public static void main(String... args) {
+        logger.info("Parameters: size={} {}", args.length, Arrays.toString(args));
         int exitCode = new CommandLine(new InjectData()).execute(args);
         System.exit(exitCode);
     }
@@ -101,7 +97,7 @@ public class InjectData implements Callable<Integer> {
             if (file.isDirectory()) {
                 allFiles.addAll(findAllFiles(file.toPath(), extension));
             } else if (file.getName().endsWith(extension)) {
-                LOGGER.debug("Found file {}", file.toPath());
+                logger.debug("Found file {}", file.toPath());
                 allFiles.add(file.toPath());
             }
         }
@@ -151,7 +147,7 @@ public class InjectData implements Callable<Integer> {
             printKeyHistogram();
             return CommandLine.ExitCode.OK;
         }
-        LOGGER.info("Injecting geolocation data");
+        logger.info("Injecting train moviment data");
         var configs = new Properties();
         configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configs.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -162,6 +158,7 @@ public class InjectData implements Callable<Integer> {
         var objectMapper = new ObjectMapper();
         var executors = Executors.newFixedThreadPool(sendThreads);
         var running = new AtomicBoolean(true);
+        var latch = new CountDownLatch(1);
 
         // use Bucket4j with greedy strategy to create a constante rate of data
         // injection
@@ -174,7 +171,11 @@ public class InjectData implements Callable<Integer> {
         Runtime.getRuntime()
                .addShutdownHook(new Thread(() -> {
                    running.set(false);
-                   executors.shutdownNow();
+                   try {
+                       latch.await(10, TimeUnit.SECONDS);
+                   } catch (InterruptedException e) {
+                       Thread.currentThread().interrupt();
+                   }
                }));
 
         AtomicInteger runningThreads = new AtomicInteger(0);
@@ -191,7 +192,7 @@ public class InjectData implements Callable<Integer> {
                          findTrainData().forEach(moviment -> {
                              try {
                                  trainBucket.asBlocking().consume(1);
-                                 LOGGER.debug("Sending flow data {}", moviment);
+                                 logger.debug("Sending train data {}", moviment);
                                  producer.send(new ProducerRecord<>("train.moviment",
                                                                     null,
                                                                     moviment.publishTimestamp(),
@@ -199,21 +200,21 @@ public class InjectData implements Callable<Integer> {
                                                                     objectMapper.writeValueAsString(moviment)),
                                                (metadata, exception) -> {
                                                    if (exception != null) {
-                                                       LOGGER.error("Error sending flow data", exception);
+                                                       logger.error("Error sending train data", exception);
                                                    } else {
                                                        sentRecords.incrementAndGet();
                                                        partitionThroughput.compute(new RecordCoordinates(metadata.topic(),
                                                                                                          metadata.partition()),
                                                                                    (k, v) -> v == null ? 1 : v + 1);
-                                                       LOGGER.debug("Sent train data {}", metadata);
+                                                       logger.debug("Sent train data {}", metadata);
                                                    }
                                                });
                              } catch (InterruptedException ie) {
                                  Thread.currentThread().interrupt();
                              } catch (JsonProcessingException e) {
-                                 LOGGER.error("Error serializing flow data", e);
+                                 logger.error("Error serializing flow data", e);
                              } catch (Exception e) {
-                                 LOGGER.error("Error sending flow data", e);
+                                 logger.error("Error sending flow data", e);
                              }
                          });
                          runningThreads.decrementAndGet();
@@ -228,8 +229,8 @@ public class InjectData implements Callable<Integer> {
                     long counter = sentRecords.getAndUpdate(v -> 0);
                     double rate = ((double) counter * Duration.ofSeconds(1).toNanos()) /
                             ((double) end - start);
-                    LOGGER.info("Sent {} records at rate {} records/s", counter, rate);
-                    partitionThroughput.forEach((k, v) -> LOGGER.info("Throughput {}-{}: {} records/s", k.topic(),
+                    logger.info("Sent {} records at rate {} records/s", counter, rate);
+                    partitionThroughput.forEach((k, v) -> logger.info("Throughput {}-{}: {} records/s", k.topic(),
                                                                       k.partition(), v));
                     partitionThroughput.clear();
                     start = end;
@@ -242,16 +243,17 @@ public class InjectData implements Callable<Integer> {
             } while (runningThreads.get() > 2);
         }
         producer.close();
+        latch.countDown();
         executors.shutdown();
-        LOGGER.info("Finished injecting geolocation data");
+        logger.info("Finished injecting train data");
         return CommandLine.ExitCode.OK;
     }
 
     private void printKeyHistogram() {
         var histogram = new TreeMap<String, AtomicInteger>();
         findTrainData().forEach(t -> histogram.computeIfAbsent(t.trainId(), k -> new AtomicInteger(0))
-                                                .incrementAndGet());
-        histogram.forEach((k, v) -> LOGGER.info("Key {} has {} records", k, v));
+                                              .incrementAndGet());
+        histogram.forEach((k, v) -> logger.info("Key {} has {} records", k, v));
     }
 
     private Stream<TrainMoviment> findTrainData() {
@@ -267,7 +269,7 @@ public class InjectData implements Callable<Integer> {
                                      }
                                      return trainMoviment.stream();
                                  } catch (Exception e) {
-                                     LOGGER.error(String.format("Error reading file %s", file), e);
+                                     logger.error(String.format("Error reading file %s", file), e);
                                      return null;
                                  }
                              })

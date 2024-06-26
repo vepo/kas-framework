@@ -23,6 +23,8 @@ public class MaestroConfigs extends AbstractConfig {
     private static final ConfigDef CONFIG = StreamsConfig.configDef()
                                                          .define(MAESTRO_PERFORMANCE_OPTIMIZER_CONFIG, Type.CLASS, Importance.LOW, MAESTRO_PERFORMANCE_OPTIMIZER_DOC)
                                                          .define(MAESTRO_TUNING_FREQUENCY_MS_CONFIG, Type.INT, DEFAULT_MAESTRO_TUNING_FREQUENCY_MS, Importance.MEDIUM, MAESTRO_TUNING_FREQUENCY_MS_DOC);
+    public static final String MAESTRO_PARAMETER_NAME_CONFIG = "maestro.parameter.name";
+    public static final Object MAESTRO_PARAMETER_VALUE_CONFIG = "maestro.parameter.value";
     static {
         CONFIG.configKeys().remove(NUM_STREAM_THREADS_CONFIG);
         CONFIG.define(NUM_STREAM_THREADS_CONFIG, Type.INT, DEFAULT_NUM_STREAM_THREADS, Importance.HIGH, NUM_STREAM_THREADS_DOC);

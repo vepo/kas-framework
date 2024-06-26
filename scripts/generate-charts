@@ -1,0 +1,181 @@
+///usr/bin/env jbang "$0" "$@" ; exit $?
+
+//DEPS org.jfree:jfreechart:1.5.4
+//DEPS org.apache.commons:commons-math3:3.6.1
+//DEPS com.opencsv:opencsv:5.9
+
+import static java.lang.System.*;
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.regex.*;
+import java.util.stream.*;
+import org.jfree.chart.*;
+import org.jfree.chart.plot.*;
+import org.jfree.data.category.*;
+import org.jfree.data.xy.*;
+import org.apache.commons.math3.stat.descriptive.*;
+import com.opencsv.*;
+
+public class GenerateCharts {
+
+    public static void main(String... args) throws IOException {
+        // read all execution-info-%d.txt files
+        try (ICSVWriter writer = new CSVWriterBuilder(new FileWriter("stats.csv")).withSeparator(',')
+                                                                                  .build()) {
+            writer.writeNext(new String[]{"Execution", "AVG bytes-consumed-rate 0", "STD bytes-consumed-rate 0", 
+                                                       "AVG bytes-consumed-rate 1", "STD bytes-consumed-rate 1",
+                                                       "AVG records-consumed-rate 0", "STD records-consumed-rate 0",
+                                                       "AVG records-consumed-rate 1", "STD records-consumed-rate 1",
+                                                       "AVG records-lag-max 0", "STD records-lag-max 0",
+                                                       "AVG records-lag-max 1", "STD records-lag-max 1",
+                                                       "AVG request-latency-avg 0", "STD request-latency-avg 0",
+                                                       "AVG request-latency-avg 1", "STD request-latency-avg 1",
+                                                       "AVG request-latency-max 0", "STD request-latency-max 0",
+                                                       "AVG request-latency-max 1", "STD request-latency-max 1"});
+            Files.list(Paths.get(".", "data"))
+                .filter(p -> p.getFileName().toString().startsWith("execution-info-"))
+                .sorted(Comparator.comparing(p -> p.getFileName().toString()))
+                .map(p -> processExecution(p))
+                .forEach(next -> writer.writeNext(next));
+            }
+    }
+
+    static record MetricValue(long timestamp, double value){}
+    static record MetricData(String metric, int group, List<MetricValue> values){}
+
+    private static String[] processExecution(Path p) {
+        try {
+            String[] row = new String[21];
+            var name = p.getFileName().toString();
+            var executionFilenameParts = name.split("-");
+            int number = Integer.parseInt(executionFilenameParts[2].substring(0, executionFilenameParts[2].length() - 4));
+            String title = "Execution " + number;
+            row[0] = Integer.toString(number);
+
+            var metrics = Files.list(Paths.get(".", "data"))
+                               .filter(metricFile -> metricFile.getFileName().toString().matches(String.format("metric\\-[a-z\\-]+\\-%03d-\\d+.txt", number)))
+                               .map(metricFile -> {
+                                   try {
+                                      Pattern pattern = Pattern.compile("metric\\-([a-z\\-]+)\\-\\d+\\-(\\d+).txt");
+                                      Matcher matcher = pattern.matcher(metricFile.getFileName().toString());
+                                      if (matcher.matches()) {
+                                          String metric = matcher.group(1);
+                                          int group = Integer.parseInt(matcher.group(2));
+                                          List<MetricValue> values = Files.lines(metricFile)
+                                                                          .map(line -> line.split(" "))
+                                                                          .map(parts -> new MetricValue(Long.parseLong(parts[0]), Double.parseDouble(parts[1])))
+                                                                          .sorted(Comparator.comparingLong(MetricValue::timestamp))
+                                                                          .collect(Collectors.toList());
+                                          return new MetricData(metric, group, values);
+                                      } else {
+                                          return null;
+                                      }
+                                  } catch (IOException e) {
+                                      e.printStackTrace();
+                                      return null;
+                                  }
+                               })
+                               .filter(Objects::nonNull)
+                               .collect(Collectors.groupingBy(MetricData::metric));
+            out.println("Processing " + title);
+            out.println("Collected data:");
+            metrics.forEach((metric, data) -> {
+                        out.println("  " + metric);
+                        data.forEach(d -> {
+                            out.println("    " + d.group + " " + d.values.size());
+                        });
+                    });
+
+            metrics.forEach((metric, data) -> {
+                out.println("Generating statistics " + metric);
+                try {
+                    var statsFile = Paths.get(".", "stats", String.format("execution-%03d", number), metric + ".txt").toFile();
+                    if (statsFile.exists()) {
+                        statsFile.delete();
+                    } else {
+                        statsFile.getParentFile().mkdirs();
+                    }
+                    PrintWriter out = new PrintWriter(statsFile);
+                    data.forEach(d -> {
+                        var stats = new DescriptiveStatistics(d.values.stream().mapToDouble(MetricValue::value).toArray());
+                        out.println("Group " + d.group);
+                        out.println("  Min: " + stats.getMin());
+                        out.println("  Max: " + stats.getMax());
+                        out.println("  Avg: " + stats.getMean());
+                        out.println("  Std: " + stats.getStandardDeviation());
+                        out.println("  95%: " + stats.getPercentile(95));
+                        out.println("  99%: " + stats.getPercentile(99));
+                        var groupIndex = 2 * d.group;
+                        switch(metric) {
+                            case "bytes-consumed-rate":
+                                row[1  + groupIndex] = Double.toString(stats.getMean());
+                                row[2  + groupIndex] = Double.toString(stats.getStandardDeviation());
+                                break;
+                            case "records-consumed-rate":
+                                row[5  + groupIndex] = Double.toString(stats.getMean());
+                                row[6  + groupIndex] = Double.toString(stats.getStandardDeviation());
+                                break;
+                            case "records-lag-max":
+                                row[9  + groupIndex] = Double.toString(stats.getMean());
+                                row[10 + groupIndex] = Double.toString(stats.getStandardDeviation());
+                                break;
+                            case "request-latency-avg":
+                                row[13 + groupIndex] = Double.toString(stats.getMean());
+                                row[14 + groupIndex] = Double.toString(stats.getStandardDeviation());
+                                break;
+                            case "request-latency-max":
+                                row[17 + groupIndex] = Double.toString(stats.getMean());
+                                row[18 + groupIndex] = Double.toString(stats.getStandardDeviation());
+                                break;
+                        }
+                    });
+                    out.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+
+            metrics.forEach((metric, data) -> {
+                try {
+                    out.println("Generating chart for " + metric);
+                    var lineChart = ChartFactory.createXYLineChart(metric,
+                                                                   "Tempo de execução (s)",
+                                                                   "Valor",
+                                                                   createDataset(data));
+                    var pngFile = Paths.get(".", "charts", String.format("execution-%03d", number), metric + ".png").toFile();
+                    if (pngFile.exists()) {
+                        pngFile.delete();
+                    } else {
+                        pngFile.getParentFile().mkdirs();
+                    }
+                    OutputStream out = new FileOutputStream(pngFile, false);
+                    ChartUtils.writeChartAsPNG(out,
+                        lineChart,
+                        1024,
+                        1024);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            return row;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static XYDataset createDataset(List<MetricData> dataset) {
+        long minTimestamp = dataset.stream()
+                                   .flatMap(d -> d.values().stream())
+                                   .mapToLong(v -> v.timestamp())
+                                   .min()
+                                   .orElse(0);
+        var xyDataset = new XYSeriesCollection();
+        dataset.forEach(data -> {
+            var serie = new XYSeries(String.format("%02d", data.group()));
+            data.values().forEach(v -> serie.add((v.timestamp() - minTimestamp) / 1000, v.value()));
+            xyDataset.addSeries(serie);
+        });
+        return xyDataset;
+     }
+}

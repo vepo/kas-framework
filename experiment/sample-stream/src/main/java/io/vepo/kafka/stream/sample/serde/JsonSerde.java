@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.vepo.maestro.experiment.data.TrainMoviment;
 
-
 public class JsonSerde implements Serde<Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonSerde.class);
@@ -24,7 +23,9 @@ public class JsonSerde implements Serde<Object> {
     public Serializer<Object> serializer() {
         return (topic, data) -> {
             try {
-                if (!CLASS_MAP.containsKey(topic)) {
+                if (data == null) {
+                    return null;
+                } else if (!CLASS_MAP.containsKey(topic)) {
                     logger.debug("Serializing data for topic: {}. Class={} Value={}", topic, data.getClass(), data);
                     return new StringBuilder(data.getClass().getName()).append("=")
                                                                        .append(MAPPER.writeValueAsString(data))
@@ -43,7 +44,9 @@ public class JsonSerde implements Serde<Object> {
     public Deserializer<Object> deserializer() {
         return (String topic, byte[] data) -> {
             try {
-                if (!CLASS_MAP.containsKey(topic)) {
+                if (data == null) {
+                    return null;
+                } else if (!CLASS_MAP.containsKey(topic)) {
                     String[] parts = new String(data).split("=");
                     return MAPPER.readValue(parts[1], Class.forName(parts[0]));
                 } else {

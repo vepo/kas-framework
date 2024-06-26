@@ -33,7 +33,7 @@ public class MaestroStream extends KafkaStreams {
             } else {
                 props.put(StreamsConfig.METRIC_REPORTER_CLASSES_CONFIG, MaestroMetricsCollector.class.getName());
             }
-            var optimizer = new PerformanceOptimizer();
+            var optimizer = new PerformanceOptimizer(props);
             props.put(MaestroConfigs.MAESTRO_PERFORMANCE_OPTIMIZER_CONFIG, optimizer);
             return new MaestroStream(topology, props, new MaestroClientSupplier(optimizer));
         } catch (StreamsException se) {

@@ -3,3 +3,5 @@ pom.xml.versionsBackup
 .vscode
 metrics.txt
 effective-pom.xml
+stats.csv
+*.log

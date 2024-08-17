@@ -17,9 +17,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,8 +25,8 @@ import io.vepo.kafka.maestro.MaestroConfigs;
 
 public class PerformanceOptimizer {
     private static final Logger logger = LoggerFactory.getLogger(PerformanceOptimizer.class);
-    private int totalThreads = -1;
-    private int numberOfGroups = 2;
+    // private int totalThreads = -1;
+    // private int numberOfGroups = 2;
     private Map<Integer, Map<String, Object>> consumerConfigs;
     private Map<Integer, Map<String, List<PerformanceMetric>>> performanceHistory;
     private Optional<String> parameterName;
@@ -52,7 +50,14 @@ public class PerformanceOptimizer {
                                                           "request-latency-avg",
                                                           "request-latency-max",
                                                           "records-lag-avg",
-                                                          "records-lag-max");
+                                                          "records-lag-max",
+                                                          "records-lead-min",
+                                                          "record-send-rate",
+                                                          "outgoing-byte-rate",
+                                                          "incoming-byte-rate",
+                                                          "cpu-load",
+                                                          "memory-free",
+                                                          "gc-time");
 
     public static final AtomicBoolean collecting = new AtomicBoolean(false);
 
@@ -67,14 +72,14 @@ public class PerformanceOptimizer {
      */
     public void feed(PerformanceMetric performanceMetric) {
         if (!collecting.get()) {
-            //logger.info("Not colleting metric yet...");
+            // logger.info("Not colleting metric yet...");
             return;
         }
 
         // records-consumed-rate
         // bytes-consumed-rate
         if (importantConsumerMetrics.contains(performanceMetric.name())) {
-            var groupId = groupId(new StreamClientId(performanceMetric.tags().get("client-id")).threadId());
+            var groupId = performanceMetric.scope().equals("jvm") || performanceMetric.scope().equals("system") ? 0 : groupId(new StreamClientId(performanceMetric.tags().get("client-id")).threadId());
             var metricHistory = performanceHistory.computeIfAbsent(groupId, (key) -> new HashMap<>())
                                                   .computeIfAbsent(performanceMetric.name(), (key) -> new LinkedList<>());
             if (performanceMetric.value() instanceof Double value && value.isNaN()) {
@@ -166,7 +171,7 @@ public class PerformanceOptimizer {
     }
 
     private int groupId(int threadId) {
-        return threadId % numberOfGroups;
+        return threadId;// % numberOfGroups;
     }
 
     // private Set<String> importantConsumerConfigs =
@@ -178,36 +183,40 @@ public class PerformanceOptimizer {
     // ConsumerConfig.RECEIVE_BUFFER_CONFIG,
     // ConsumerConfig.SEND_BUFFER_CONFIG);
 
-    private Set<String> importantConsumerConfigs = Set.of(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG);
+    // private Set<String> importantConsumerConfigs =
+    // Set.of(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG);
 
     private Map<String, Object> newConsumerConfig(int groupId, Map<String, Object> config) {
         // max.poll.interval.ms
         // request.timeout.ms
         // max.poll.records
-        if (groupId == 0) {
-            return new HashMap<>();
+        // if (groupId == 0) {
+        // return new HashMap<>();
+        // } else {
+        var changeConfigs = new HashMap<String, Object>();
+        if (parameterName.isPresent() && parameterValue.isPresent()) {
+            changeConfigs.put(parameterName.get(), parameterValue.get());
         } else {
-            var changeConfigs = new HashMap<String, Object>();
-            if (parameterName.isPresent() && parameterValue.isPresent()) {
-                changeConfigs.put(parameterName.get(), parameterValue.get());
-            } else {
-                // Random value between 90% and 110%
-                Function<String, Object> randomValue = key -> {
-                    var previousValue = config.getOrDefault(key, ConsumerConfig.configDef().defaultValues().get(key));
-                    if (previousValue instanceof String) {
-                        return (int) ((1.1 - (0.2 * random())) * Integer.parseInt((String) previousValue));
-                    } else if (previousValue instanceof Integer) {
-                        return (int) ((1.1 - (0.2 * random())) * (Integer) previousValue);
-                    } else {
-                        logger.warn("Invalid value for key {}: {}", key, previousValue);
-                        return previousValue;
-                    }
-                };
-                importantConsumerConfigs.forEach(key -> changeConfigs.put(key, randomValue.apply(key)));
-            }
-            logger.info("Thread {} changed configs: {}", groupId, changeConfigs);
-            return changeConfigs;
+            throw new IllegalStateException("Parameter name and value must be set");
+            // Random value between 90% and 110%
+            // Function<String, Object> randomValue = key -> {
+            // var previousValue = config.getOrDefault(key,
+            // ConsumerConfig.configDef().defaultValues().get(key));
+            // if (previousValue instanceof String) {
+            // return (int) ((1.1 - (0.2 * random())) * Integer.parseInt((String)
+            // previousValue));
+            // } else if (previousValue instanceof Integer) {
+            // return (int) ((1.1 - (0.2 * random())) * (Integer) previousValue);
+            // } else {
+            // logger.warn("Invalid value for key {}: {}", key, previousValue);
+            // return previousValue;
+            // }
+            // };
+            // importantConsumerConfigs.forEach(key -> changeConfigs.put(key,
+            // randomValue.apply(key)));
         }
+        logger.info("Thread {} changed configs: {}", groupId, changeConfigs);
+        return changeConfigs;
     }
 
     private double random() {

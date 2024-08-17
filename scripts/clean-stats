@@ -1,0 +1,5 @@
+#!/bin/bash
+
+rm -rf ./charts/*
+rm -rf ./stats/*
+rm -f stats.csv

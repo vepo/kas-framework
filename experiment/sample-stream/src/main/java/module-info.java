@@ -8,4 +8,5 @@ module maestro.experiment.sampleStream {
     requires maestro.kafkaStream;
 
     exports io.vepo.kafka.stream.sample.serde to kafka.clients;
+    exports io.vepo.kafka.stream.sample to com.fasterxml.jackson.databind;
 }

@@ -184,6 +184,7 @@ public class SampleStream {
     private static final AtomicInteger producerCounter = new AtomicInteger(0);
 
     private static List<Process> startProducer() {
+        var execution = producerCounter.incrementAndGet();
         return IntStream.range(0, 5)
                         .mapToObj(i -> {
                             try {
@@ -194,8 +195,8 @@ public class SampleStream {
                                                           "exec:java",
                                                           "-Dexec.mainClass=io.vepo.kafka.stream.datagenerator.InjectData",
                                                           "-Dexec.args=-d ./experiment/train-data -t 20 -r 10000 train")
-                                                                                                                        .redirectError(new File(String.format("log/producer-%03d-%02d.err.log", producerCounter.incrementAndGet(), i)))
-                                                                                                                        .redirectOutput(new File(String.format("log/producer-%03d-%02d.log", producerCounter.get(), i)))
+                                                                                                                        .redirectError(new File(String.format("log/producer-%03d-%02d.err.log", execution, i)))
+                                                                                                                        .redirectOutput(new File(String.format("log/producer-%03d-%02d.log", execution, i)))
                                                                                                                         .start();
                             } catch (IOException e) {
                                 logger.error("Error initializing inject data", e);

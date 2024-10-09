@@ -162,12 +162,14 @@ public class SampleStream {
     }
 
     private static void startAddDelay() {
+	logger.info("Starting Add Delay");
         try {
             var p = Runtime.getRuntime()
                            .exec(new String[] {
                                "./scripts/add-delay.sh"
                            });
             int exitCode = p.waitFor();
+	    logger.info("Add delay exitCode={}", exitCode);
             if (exitCode != 0) {
                 shutdown(null);
             }
@@ -185,6 +187,7 @@ public class SampleStream {
 
     private static List<Process> startProducer() {
         var execution = producerCounter.incrementAndGet();
+	logger.info("Starting {} producer!", execution);
         return IntStream.range(0, 5)
                         .mapToObj(i -> {
                             try {
@@ -207,6 +210,7 @@ public class SampleStream {
     }
 
     private static void createTopics() {
+	logger.info("Creating topics");
         try {
             var p = Runtime.getRuntime()
                            .exec(new String[] {
@@ -214,6 +218,7 @@ public class SampleStream {
                            });
 
             int exitCode = p.waitFor();
+	    logger.info("Creating topics exitCode={}", exitCode);
             if (exitCode != 0) {
                 shutdown(null);
             }
@@ -228,12 +233,14 @@ public class SampleStream {
     }
 
     private static void startKafka() {
+	logger.info("Starting Kafka");
         try {
             var p = Runtime.getRuntime()
                            .exec(new String[] {
                                "./scripts/start-kafka"
                            });
             int exitCode = p.waitFor();
+	    logger.info("Start Kafka exitCode={}", exitCode);
             if (exitCode != 0) {
                 shutdown(null);
             }
@@ -248,6 +255,7 @@ public class SampleStream {
     }
 
     private static void shutdown(List<Process> producerPid) {
+	logger.info("Shutdown environment");
         try {
             if (Objects.nonNull(producerPid)) {
                 producerPid.forEach(Process::destroy);
@@ -257,6 +265,7 @@ public class SampleStream {
                                "./scripts/clean-environment"
                            });
             int exitCode = p.waitFor();
+	    logger.info("Shutdown evironment exitCode={}", exitCode);
             if (exitCode != 0) {
                 shutdown(null);
             }
@@ -271,6 +280,7 @@ public class SampleStream {
     }
 
     private static void startStream(Parameter parameter) {
+	logger.info("Starting Streamer");
         var builder = new StreamsBuilder();
         builder.<String, TrainMoviment>stream("train.moviment")
                .groupByKey()
@@ -317,5 +327,6 @@ public class SampleStream {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+	logger.info("Streamer stopped");
     }
 }

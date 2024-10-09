@@ -24,15 +24,31 @@ public class GenerateCharts {
         try (ICSVWriter writer = new CSVWriterBuilder(new FileWriter("stats.csv")).withSeparator(',')
                                                                                   .build()) {
             writer.writeNext(new String[]{"Execution", "AVG bytes-consumed-rate", "STD bytes-consumed-rate", 
+                                                       "AVG bytes-consumed-rate 99%", "AVG bytes-consumed-rate 95%",
                                                        "AVG records-consumed-rate", "STD records-consumed-rate",
-                                                       "AVG records-lag-avg", "STD records-avg-max",
+                                                       "AVG records-consumed-rate 99%", "AVG records-consumed-rate 95%",
+                                                       "AVG records-lag-avg", "STD records-lag-avg",
+                                                       "AVG records-lag-avg 99%", "AVG records-lag-avg 95%",
                                                        "AVG records-lag-max", "STD records-lag-max",
+                                                       "AVG records-lag-max 99%", "AVG records-lag-max 95%",
                                                        "AVG records-lead-min", "STD records-lead-min",
+                                                       "AVG records-lead-min 99%", "AVG records-lead-min 95%",
                                                        "AVG request-latency-avg", "STD request-latency-avg",
+                                                       "AVG request-latency-avg 99%", "AVG request-latency-avg 95%",
                                                        "AVG request-latency-max", "STD request-latency-max",
+                                                       "AVG request-latency-max 99%", "AVG request-latency-max 95%",
                                                        "AVG cpu-load", "STD cpu-load",
+                                                       "AVG cpu-load 99%", "AVG cpu-load 95%",
                                                        "AVG gc-time", "STD gc-time",
-                                                       "AVG memory-free", "STD memory-free"});
+                                                       "AVG gc-time 99%", "AVG gc-time 95%",
+                                                       "AVG memory-free", "STD memory-free",
+                                                       "AVG memory-free 99%", "AVG memory-free 95%",
+                                                       "AVG record-send-rate", "STD record-send-rate",
+                                                       "AVG record-send-rate 99%", "AVG record-send-rate 95%",
+                                                       "AVG incoming-byte-rate", "STD incoming-byte-rate",
+                                                       "AVG incoming-byte-rate 99%", "AVG incoming-byte-rate 95%",
+                                                       "AVG outgoing-byte-rate", "STD outgoing-byte-rate",
+                                                       "AVG outgoing-byte-rate 99%", "AVG outgoing-byte-rate 95%"});
             Files.list(Paths.get(".", "data"))
                 .filter(p -> p.getFileName().toString().startsWith("execution-info-"))
                 .sorted(Comparator.comparing(p -> p.getFileName().toString()))
@@ -47,7 +63,7 @@ public class GenerateCharts {
 
     private static String[] processExecution(Path p) {
         try {
-            String[] row = new String[21];
+            String[] row = new String[53];
             var name = p.getFileName().toString();
             var executionFilenameParts = name.split("-");
             int number = Integer.parseInt(executionFilenameParts[2].substring(0, executionFilenameParts[2].length() - 4));
@@ -114,42 +130,80 @@ public class GenerateCharts {
                                 case "bytes-consumed-rate":
                                     row[1] = Double.toString(stats.getMean());
                                     row[2] = Double.toString(stats.getStandardDeviation());
+                                    row[3] = Double.toString(stats.getPercentile(99));
+                                    row[4] = Double.toString(stats.getPercentile(95));
                                     break;
                                 case "records-consumed-rate":
-                                    row[3] = Double.toString(stats.getMean());
-                                    row[4] = Double.toString(stats.getStandardDeviation());
-                                    break;
-                                case "records-lag-avg":
                                     row[5] = Double.toString(stats.getMean());
                                     row[6] = Double.toString(stats.getStandardDeviation());
+                                    row[7] = Double.toString(stats.getPercentile(99));
+                                    row[8] = Double.toString(stats.getPercentile(95));
                                     break;
-                                case "records-lag-max":
-                                    row[7] = Double.toString(stats.getMean());
-                                    row[8] = Double.toString(stats.getStandardDeviation());
-                                    break;
-                                case "records-lead-min":
+                                case "records-lag-avg":
                                     row[9] = Double.toString(stats.getMean());
                                     row[10] = Double.toString(stats.getStandardDeviation());
+                                    row[11] = Double.toString(stats.getPercentile(99));
+                                    row[12] = Double.toString(stats.getPercentile(95));
                                     break;
-                                case "request-latency-avg":
-                                    row[11] = Double.toString(stats.getMean());
-                                    row[12] = Double.toString(stats.getStandardDeviation());
-                                    break;
-                                case "request-latency-max":
+                                case "records-lag-max":
                                     row[13] = Double.toString(stats.getMean());
                                     row[14] = Double.toString(stats.getStandardDeviation());
+                                    row[15] = Double.toString(stats.getPercentile(99));
+                                    row[16] = Double.toString(stats.getPercentile(95));
                                     break;
-                                case "cpu-load":
-                                    row[15] = Double.toString(stats.getMean());
-                                    row[16] = Double.toString(stats.getStandardDeviation());
-                                    break;
-                                case "gc-time":
+                                case "records-lead-min":
                                     row[17] = Double.toString(stats.getMean());
                                     row[18] = Double.toString(stats.getStandardDeviation());
+                                    row[19] = Double.toString(stats.getPercentile(99));
+                                    row[20] = Double.toString(stats.getPercentile(95));
+                                    break;
+                                case "request-latency-avg":
+                                    row[21] = Double.toString(stats.getMean());
+                                    row[22] = Double.toString(stats.getStandardDeviation());
+                                    row[23] = Double.toString(stats.getPercentile(99));
+                                    row[24] = Double.toString(stats.getPercentile(95));
+                                    break;
+                                case "request-latency-max":
+                                    row[25] = Double.toString(stats.getMean());
+                                    row[26] = Double.toString(stats.getStandardDeviation());
+                                    row[27] = Double.toString(stats.getPercentile(99));
+                                    row[28] = Double.toString(stats.getPercentile(95));
+                                    break;
+                                case "cpu-load":
+                                    row[29] = Double.toString(stats.getMean());
+                                    row[30] = Double.toString(stats.getStandardDeviation());
+                                    row[31] = Double.toString(stats.getPercentile(99));
+                                    row[32] = Double.toString(stats.getPercentile(95));
+                                    break;
+                                case "gc-time":
+                                    row[33] = Double.toString(stats.getMean());
+                                    row[34] = Double.toString(stats.getStandardDeviation());
+                                    row[35] = Double.toString(stats.getPercentile(99));
+                                    row[36] = Double.toString(stats.getPercentile(95));
                                     break;
                                 case "memory-free":
-                                    row[19] = Double.toString(stats.getMean());
-                                    row[20] = Double.toString(stats.getStandardDeviation());
+                                    row[37] = Double.toString(stats.getMean());
+                                    row[38] = Double.toString(stats.getStandardDeviation());
+                                    row[39] = Double.toString(stats.getPercentile(99));
+                                    row[40] = Double.toString(stats.getPercentile(95));
+                                    break;
+                                case "record-send-rate":
+                                    row[41] = Double.toString(stats.getMean());
+                                    row[42] = Double.toString(stats.getStandardDeviation());
+                                    row[43] = Double.toString(stats.getPercentile(99));
+                                    row[44] = Double.toString(stats.getPercentile(95));
+                                    break;
+                                case "incoming-byte-rate":
+                                    row[45] = Double.toString(stats.getMean());
+                                    row[46] = Double.toString(stats.getStandardDeviation());
+                                    row[47] = Double.toString(stats.getPercentile(99));
+                                    row[48] = Double.toString(stats.getPercentile(95));
+                                    break;
+                                case "outgoing-byte-rate":
+                                    row[49] = Double.toString(stats.getMean());
+                                    row[50] = Double.toString(stats.getStandardDeviation());
+                                    row[51] = Double.toString(stats.getPercentile(99));
+                                    row[52] = Double.toString(stats.getPercentile(95));
                                     break;
                             }
                             out.close();

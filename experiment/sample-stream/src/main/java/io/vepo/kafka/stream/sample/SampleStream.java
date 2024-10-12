@@ -197,7 +197,7 @@ public class SampleStream {
                                                           "compile",
                                                           "exec:java",
                                                           "-Dexec.mainClass=io.vepo.kafka.stream.datagenerator.InjectData",
-                                                          "-Dexec.args=-d ./experiment/train-data -t 20 -r 10000 train")
+                                                          "-Dexec.args=-d ./experiment/train-data -t 10 -r 20000 train")
                                                                                                                         .redirectError(new File(String.format("log/producer-%03d-%02d.err.log", execution, i)))
                                                                                                                         .redirectOutput(new File(String.format("log/producer-%03d-%02d.log", execution, i)))
                                                                                                                         .start();
@@ -284,7 +284,7 @@ public class SampleStream {
         var builder = new StreamsBuilder();
         builder.<String, TrainMoviment>stream("train.moviment")
                .groupByKey()
-               .windowedBy(TimeWindows.of(Duration.ofMinutes(1)))
+               .windowedBy(TimeWindows.of(Duration.ofMinutes(2)))
                .aggregate(
                           () -> new TrainSpeed(0, 0),
                           (key, value, aggregate) -> switch (value.eventType()) {
@@ -320,7 +320,7 @@ public class SampleStream {
             PerformanceOptimizer.collecting.set(false);
             maestroStream.close();
             countDown.countDown();
-        }, 20, TimeUnit.MINUTES);
+        }, 30, TimeUnit.MINUTES);
         maestroStream.start();
         try {
             countDown.await();

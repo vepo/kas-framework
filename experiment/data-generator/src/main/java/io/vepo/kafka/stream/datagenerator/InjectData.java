@@ -153,6 +153,9 @@ public class InjectData implements Callable<Integer> {
         configs.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configs.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configs.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10485760);
+	//configs.put(ProducerConfig.BATCH_SIZE_CONFIG, 512);
+	//configs.put(ProducerConfig.LINGER_MS_CONFIG, 5);
+	//configs.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 45000);
 
         var producer = new KafkaProducer<String, String>(configs);
         var objectMapper = new ObjectMapper();
@@ -226,12 +229,12 @@ public class InjectData implements Callable<Integer> {
             do {
                 if (System.nanoTime() - start > reportFrequency.toNanos()) {
                     long end = System.nanoTime();
+		    double durationNanos = (double) end - start;
                     long counter = sentRecords.getAndUpdate(v -> 0);
-                    double rate = ((double) counter * Duration.ofSeconds(1).toNanos()) /
-                            ((double) end - start);
+                    double rate = ((double) counter * Duration.ofSeconds(1).toNanos()) / durationNanos;
                     logger.info("Sent {} records at rate {} records/s", counter, rate);
                     partitionThroughput.forEach((k, v) -> logger.info("Throughput {}-{}: {} records/s", k.topic(),
-                                                                      k.partition(), v));
+                                                                      k.partition(), ((double) v * Duration.ofSeconds(1).toNanos()) / durationNanos));
                     partitionThroughput.clear();
                     start = end;
                 }

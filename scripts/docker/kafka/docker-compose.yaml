@@ -18,6 +18,8 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://kafka-0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-0:9092
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-0:9093,2@kafka-1:9095,3@kafka-2:9097
+    networks:
+      - maestro-network
   kafka-1:
     image: vepo/kafka:3.7.0
     container_name: kafka-1
@@ -36,6 +38,8 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://:9094,CONTROLLER://kafka-1:9095
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9094
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-0:9093,2@kafka-1:9095,3@kafka-2:9097
+    networks:
+      - maestro-network
   kafka-2:
     image: vepo/kafka:3.7.0
     container_name: kafka-2
@@ -54,3 +58,9 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://:9096,CONTROLLER://kafka-2:9097
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9096
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-0:9093,2@kafka-1:9095,3@kafka-2:9097
+    networks:
+      - maestro-network
+networks:
+  maestro-network:
+    name: maestro-network
+    driver: bridge

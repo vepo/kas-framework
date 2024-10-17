@@ -5,6 +5,7 @@ import static java.nio.file.StandardOpenOption.CREATE;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,6 +26,7 @@ import io.vepo.kafka.maestro.MaestroConfigs;
 
 public class PerformanceOptimizer {
     private static final Logger logger = LoggerFactory.getLogger(PerformanceOptimizer.class);
+    private static final Path DATA_PATH = Paths.get(System.getenv("STATS_FOLDER"));
     // private int totalThreads = -1;
     // private int numberOfGroups = 2;
     private Map<Integer, Map<String, Object>> consumerConfigs;
@@ -86,7 +88,7 @@ public class PerformanceOptimizer {
                 return;
             }
             try {
-                Files.writeString(Paths.get(".", "data", String.format("metric-%s-%03d-%02d.txt", performanceMetric.name(), currentExecution.get(), groupId)),
+                Files.writeString(DATA_PATH.resolve(String.format("metric-%s-%03d-%02d.txt", performanceMetric.name(), currentExecution.get(), groupId)),
                                   String.format("%d %s\n", System.currentTimeMillis(), performanceMetric.value().toString()),
                                   APPEND, CREATE);
             } catch (IOException e) {
@@ -132,12 +134,12 @@ public class PerformanceOptimizer {
     public synchronized Map<String, Object> generateConsumerConfigs(int threadId, Map<String, Object> config) {
         if (currentExecution.get() == 0) {
             int counter = 0;
-            while (Paths.get(".", "data", String.format("execution-info-%03d.txt", ++counter)).toFile().exists()) {
+            while (DATA_PATH.resolve(String.format("execution-info-%03d.txt", ++counter)).toFile().exists()) {
                 // do nothing
             }
             currentExecution.set(counter);
             try {
-                Files.writeString(Paths.get(".", "data", String.format("execution-info-%03d.txt", currentExecution.get())),
+                Files.writeString(DATA_PATH.resolve(String.format("execution-info-%03d.txt", currentExecution.get())),
                                   """
                                   ==========================================================
                                   Execution Info
@@ -154,7 +156,7 @@ public class PerformanceOptimizer {
         newConfigs.putAll(consumerConfigs.computeIfAbsent(groupId(threadId), (key) -> newConsumerConfig(key, config)));
         if (infoReportedGroup.add(groupId(threadId))) {
             try {
-                Files.writeString(Paths.get(".", "data", String.format("execution-info-%03d.txt", currentExecution.get())),
+                Files.writeString(DATA_PATH.resolve(String.format("execution-info-%03d.txt", currentExecution.get())),
                                   String.format("""
                                                 Group: %02d
                                                 Configs: %s

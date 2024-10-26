@@ -13,11 +13,20 @@ services:
   stream-default:
     image: openjdk:21-jdk
     command: java -jar /app/sample-stream-jar-with-dependencies.jar
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     environment:
       APP_ID: stream-default
       PARAMETER_NAME: max.partition.fetch.bytes
       PARAMETER_VALUE: 1048576
       STATS_FOLDER: /app/stats
+      TEST_ID: default
     volumes:
       - ./runtime:/app
       - ./stats/default:/app/stats
@@ -26,11 +35,20 @@ services:
   stream-low: ## -25%
     image: openjdk:21-jdk
     command: java -jar /app/sample-stream-jar-with-dependencies.jar
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     environment:
-      APP_ID: stream-default
+      APP_ID: stream-low
       PARAMETER_NAME: max.partition.fetch.bytes
       PARAMETER_VALUE: 786432
       STATS_FOLDER: /app/stats
+      TEST_ID: low
     volumes:
       - ./runtime:/app
       - ./stats/low:/app/stats
@@ -39,11 +57,20 @@ services:
   stream-high: ## +25%
     image: openjdk:21-jdk
     command: java -jar /app/sample-stream-jar-with-dependencies.jar
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     environment:
-      APP_ID: stream-default
+      APP_ID: stream-high
       PARAMETER_NAME: max.partition.fetch.bytes
       PARAMETER_VALUE: 1310720
       STATS_FOLDER: /app/stats
+      TEST_ID: high
     volumes:
       - ./runtime:/app
       - ./stats/high:/app/stats

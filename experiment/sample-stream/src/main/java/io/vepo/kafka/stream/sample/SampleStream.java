@@ -298,12 +298,12 @@ public class SampleStream {
                               case "ARRIVAL" -> new TrainSpeed(aggregate.departure(), aggregate.arrival() + 1);
                               default -> aggregate;
                           },
-                          Materialized.<String, TrainSpeed, WindowStore<Bytes, byte[]>>as("train-speed-store")
+                          Materialized.<String, TrainSpeed, WindowStore<Bytes, byte[]>>as("train-speed-store-" + System.getenv("TEST_ID"))
                                       .withKeySerde(Serdes.String())
                                       .withValueSerde(new TrainSpeedSerde()))
                .toStream()
                // .peek((key, value) -> System.out.println("Key: " + key + " Value: " + value))
-               .to("train.event-summary", Produced.with(WindowedSerdes.timeWindowedSerdeFrom(String.class), new TrainSpeedSerde()));
+               .to("train.event-summary-" + System.getenv("TEST_ID"), Produced.with(WindowedSerdes.timeWindowedSerdeFrom(String.class), new TrainSpeedSerde()));
 
         Properties props = new Properties();
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-0:9092,kafka-1:9094,kafka-2:9096");

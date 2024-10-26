@@ -1,5 +1,12 @@
 #!/bin/bash
 
-docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic train.moviment      --partitions 16 --replication-factor 1
-docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic train.event-summary --partitions 16 --replication-factor 1
-docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic load-balancing-0-train-speed-store-changelog  --partitions 16 --replication-factor 1
+docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic train.moviment                                        --partitions 16 --replication-factor 1
+
+docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic train.event-summary-default                           --partitions 16 --replication-factor 1
+docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic stream-default-train-speed-store-default-changelog    --partitions 16 --replication-factor 1
+
+docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic train.event-summary-low                               --partitions 16 --replication-factor 1
+docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic stream-low-train-speed-store-low-changelog            --partitions 16 --replication-factor 1
+
+docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic train.event-summary-high                              --partitions 16 --replication-factor 1
+docker exec kafka-0 /kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic stream-high-train-speed-store-high-changelog          --partitions 16 --replication-factor 1

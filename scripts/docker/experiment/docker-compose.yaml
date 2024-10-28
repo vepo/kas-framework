@@ -2,29 +2,37 @@ version: '3'
 services:
   producer:
     image: openjdk:21-jdk
-    command: java -jar /app/data-generator-jar-with-dependencies.jar -d /app/train-data -t 10 -r 20000 train
+    command: java -jar /app/data-generator-jar-with-dependencies.jar -d /app/train-data -t 10 -r 10000 train
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 6
     volumes:
       - ./runtime:/app
     networks:
       - maestro-network
   stream-default:
     image: openjdk:21-jdk
-    command: java -jar /app/sample-stream-jar-with-dependencies.jar
+    command: java -Xms1g -Xmx1g -jar /app/sample-stream-jar-with-dependencies.jar
     deploy:
       resources:
         limits:
-          cpus: 1
-          memory: 512M
+          cpus: '2'
+          memory: 1.5gb
         reservations:
           cpus: '0.5'
-          memory: 256M
+          memory: 1.5gb
     environment:
       APP_ID: stream-default
-      PARAMETER_NAME: max.partition.fetch.bytes
-      PARAMETER_VALUE: 1048576
+      # PARAMETER_NAME: max.partition.fetch.bytes
+      # PARAMETER_VALUE: 1048576
+      # PARAMETER_NAME: fetch.max.bytes
+      # PARAMETER_VALUE: 52428800
+      # PARAMETER_NAME: max.poll.records
+      # PARAMETER_VALUE: 500
+      # PARAMETER_NAME: receive.buffer.bytes
+      # PARAMETER_VALUE: 65536
+      PARAMETER_NAME: send.buffer.bytes
+      PARAMETER_VALUE: 131072
       STATS_FOLDER: /app/stats
       TEST_ID: default
     volumes:
@@ -34,19 +42,27 @@ services:
       - maestro-network
   stream-low: ## -25%
     image: openjdk:21-jdk
-    command: java -jar /app/sample-stream-jar-with-dependencies.jar
+    command: java -Xms1g -Xmx1g -jar /app/sample-stream-jar-with-dependencies.jar
     deploy:
       resources:
         limits:
-          cpus: 1
-          memory: 512M
+          cpus: '2'
+          memory: 1.5gb
         reservations:
           cpus: '0.5'
-          memory: 256M
+          memory: 1.5gb
     environment:
       APP_ID: stream-low
-      PARAMETER_NAME: max.partition.fetch.bytes
-      PARAMETER_VALUE: 786432
+      # PARAMETER_NAME: max.partition.fetch.bytes
+      # PARAMETER_VALUE: 786432
+      # PARAMETER_NAME: fetch.max.bytes
+      # PARAMETER_VALUE: 39321600
+      # PARAMETER_NAME: max.poll.records
+      # PARAMETER_VALUE: 375
+      # PARAMETER_NAME: receive.buffer.bytes
+      # PARAMETER_VALUE: 49152
+      PARAMETER_NAME: send.buffer.bytes
+      PARAMETER_VALUE: 98304
       STATS_FOLDER: /app/stats
       TEST_ID: low
     volumes:
@@ -56,19 +72,27 @@ services:
       - maestro-network
   stream-high: ## +25%
     image: openjdk:21-jdk
-    command: java -jar /app/sample-stream-jar-with-dependencies.jar
+    command: java -Xms1g -Xmx1g -jar /app/sample-stream-jar-with-dependencies.jar
     deploy:
       resources:
         limits:
-          cpus: 1
-          memory: 512M
+          cpus: '2'
+          memory: 1.5gb
         reservations:
           cpus: '0.5'
-          memory: 256M
+          memory: 1.5gb
     environment:
       APP_ID: stream-high
-      PARAMETER_NAME: max.partition.fetch.bytes
-      PARAMETER_VALUE: 1310720
+      # PARAMETER_NAME: max.partition.fetch.bytes
+      # PARAMETER_VALUE: 1310720
+      # PARAMETER_NAME: fetch.max.bytes
+      # PARAMETER_VALUE: 65536000
+      # PARAMETER_NAME: max.poll.records
+      # PARAMETER_VALUE: 625
+      # PARAMETER_NAME: receive.buffer.bytes
+      # PARAMETER_VALUE: 81920
+      PARAMETER_NAME: send.buffer.bytes
+      PARAMETER_VALUE: 163840
       STATS_FOLDER: /app/stats
       TEST_ID: high
     volumes:

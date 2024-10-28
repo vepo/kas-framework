@@ -81,7 +81,7 @@ public class PerformanceOptimizer {
         // records-consumed-rate
         // bytes-consumed-rate
         if (importantConsumerMetrics.contains(performanceMetric.name())) {
-            var groupId = performanceMetric.scope().equals("jvm") || performanceMetric.scope().equals("system") ? 0 : groupId(new StreamClientId(performanceMetric.tags().get("client-id")).threadId());
+            var groupId = performanceMetric.scope().equals("jvm") || performanceMetric.scope().equals("system") ? 0 : groupId(new StreamClientId(performanceMetric.clientId()).threadId());
             var metricHistory = performanceHistory.computeIfAbsent(groupId, (key) -> new HashMap<>())
                                                   .computeIfAbsent(performanceMetric.name(), (key) -> new LinkedList<>());
             if (performanceMetric.value() instanceof Double value && value.isNaN()) {

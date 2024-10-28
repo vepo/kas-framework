@@ -59,7 +59,7 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
-            <groupId>io.vepo</groupId>
+            <groupId>dev.vepo</groupId>
             <artifactId>stomp4j</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>

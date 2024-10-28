@@ -18,8 +18,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.vepo.maestro.experiment.data.TrainInfo;
 import io.vepo.maestro.experiment.data.TrainMoviment;
-import io.vepo.stomp4j.StompClient;
-import io.vepo.stomp4j.UserCredential;
+import dev.vepo.stomp4j.StompClient;
+import dev.vepo.stomp4j.UserCredential;
 
 public class TrainData {
     private static final Logger logger = LoggerFactory.getLogger(TrainData.class);

@@ -286,7 +286,13 @@ public class SampleStream {
     }
 
     private static void startStream(String appId, Parameter parameter) {
-	logger.info("Starting Streamer");
+        logger.info("Waiting lag grow.... 10 minutes");
+        try {
+            Thread.sleep(Duration.ofMinutes(10).toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        logger.info("Starting Streamer");
         var builder = new StreamsBuilder();
         builder.<String, TrainMoviment>stream("train.moviment")
                .groupByKey()
@@ -310,7 +316,7 @@ public class SampleStream {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, appId);
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, StringSerde.class);
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
-        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 1);
+        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
         props.put(MaestroConfigs.MAESTRO_PARAMETER_NAME_CONFIG, parameter.key());
         props.put(MaestroConfigs.MAESTRO_PARAMETER_VALUE_CONFIG, parameter.value());
         try(var maestroStream = MaestroStream.create(builder.build(), props)) {
@@ -326,7 +332,7 @@ public class SampleStream {
                 PerformanceOptimizer.collecting.set(false);
                 maestroStream.close();
                 countDown.countDown();
-            }, 30, TimeUnit.MINUTES);
+            }, 15, TimeUnit.MINUTES);
             maestroStream.start();
             try {
                 countDown.await();

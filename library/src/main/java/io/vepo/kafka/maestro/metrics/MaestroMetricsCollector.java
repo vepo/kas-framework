@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -29,9 +30,9 @@ import io.vepo.kafka.maestro.MaestroConfigs;
 
 public class MaestroMetricsCollector implements MetricsReporter, ClusterResourceListener {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MaestroMetricsCollector.class);
+    private static final Logger logger = LoggerFactory.getLogger(MaestroMetricsCollector.class);
 
-    record MetricKey(String scope, String name) {
+    record MetricKey(String scope, String name, Map<String, String> tags) {
     }
 
     private final Map<MetricKey, KafkaMetric> metrics;
@@ -61,19 +62,39 @@ public class MaestroMetricsCollector implements MetricsReporter, ClusterResource
                 configs.get(MaestroConfigs.MAESTRO_PERFORMANCE_OPTIMIZER_CONFIG) instanceof PerformanceOptimizer optimizer) {
             AtomicLong lastGarbageCollectorTime = new AtomicLong(gcMBean.stream().mapToLong(GarbageCollectorMXBean::getCollectionTime).sum());
             executor.scheduleAtFixedRate(() -> {
-                metrics.forEach((k, v) -> {
-                    if (v.metricValue() instanceof Number number) {
-                        optimizer.feed(new PerformanceMetric(k.scope(),
-                                                             k.name(),
-                                                             v.metricName().tags(),
-                                                             number,
-                                                             System.currentTimeMillis()));
+                var metricNames = metrics.keySet()
+                                         .stream()
+                                         .map(MetricKey::name)
+                                         .collect(Collectors.toSet());
+                
+                metricNames.forEach(name -> {
+                    var currMetrics = metrics.entrySet()
+                                             .stream()
+                                             .filter(e -> e.getKey().name().equals(name))
+                                             .toList();
+                    if (!currMetrics.isEmpty()) {
+                        var first = currMetrics.get(0);
+                        if (first.getValue().metricValue() instanceof Number number) {
+                            Number avgValue = number;
+                            if (number instanceof Integer) {
+                                avgValue = currMetrics.stream().mapToInt(e -> (int) e.getValue().metricValue()).average().orElse((int) avgValue);
+                            } else if (number instanceof Double) {
+                                avgValue = currMetrics.stream().mapToDouble(e -> (double) e.getValue().metricValue()).average().orElse((double) avgValue);
+                            } else if (number instanceof Long) {
+                                avgValue = currMetrics.stream().mapToLong(e -> (long) e.getValue().metricValue()).average().orElse((long) avgValue);
+                            }
+                            optimizer.feed(new PerformanceMetric(first.getKey().scope(),
+                                                                 first.getKey().name(),
+                                                                 first.getValue().metricName().tags().get("client-id"),
+                                                                 avgValue,
+                                                                 System.currentTimeMillis()));
+                        }
                     }
                 });
-                optimizer.feed(new PerformanceMetric("system", "cpu-load", Map.of(), osMBean.getSystemLoadAverage(), System.currentTimeMillis()));
-                optimizer.feed(new PerformanceMetric("system", "memory-free", Map.of(), Runtime.getRuntime().freeMemory(), System.currentTimeMillis()));
+                optimizer.feed(new PerformanceMetric("system", "cpu-load", "", osMBean.getSystemLoadAverage(), System.currentTimeMillis()));
+                optimizer.feed(new PerformanceMetric("system", "memory-free", "", Runtime.getRuntime().freeMemory(), System.currentTimeMillis()));
                 var currentGarbageCollectorTime = gcMBean.stream().mapToLong(GarbageCollectorMXBean::getCollectionTime).sum();
-                optimizer.feed(new PerformanceMetric("jvm", "gc-time", Map.of(), currentGarbageCollectorTime - lastGarbageCollectorTime.getAndUpdate((old) -> currentGarbageCollectorTime), System.currentTimeMillis()));
+                optimizer.feed(new PerformanceMetric("jvm", "gc-time", "", currentGarbageCollectorTime - lastGarbageCollectorTime.getAndUpdate((old) -> currentGarbageCollectorTime), System.currentTimeMillis()));
 
             }, 10, 10, TimeUnit.SECONDS);
         } else {
@@ -89,10 +110,21 @@ public class MaestroMetricsCollector implements MetricsReporter, ClusterResource
     @Override
     public void metricChange(KafkaMetric metric) {
         synchronized (LOCK) {
+            // logger.info("Metric: {} producer? = {} consumer? = {}", metric.metricName(), isProducerRelevante(metric), isConsumerRelevante(metric));
             if (isNotRestoreConsumer(metric)) {
-                metrics.put(new MetricKey(prefix, metric.metricName().name()), metric);
+                metrics.put(new MetricKey(prefix, metric.metricName().name(), metric.metricName().tags()), metric);
             }
         }
+    }
+
+    private boolean isProducerRelevante(KafkaMetric metric) {
+        return metric.metricName().tags().get("topic") != null &&
+                metric.metricName().tags().get("topic").startsWith("train.event-summary-");
+    }
+
+    private boolean isConsumerRelevante(KafkaMetric metric) {
+        return metric.metricName().tags().get("topic") != null &&
+                metric.metricName().tags().get("topic").equals("train.moviment");
     }
 
     private boolean isNotRestoreConsumer(KafkaMetric metric) {
@@ -103,7 +135,7 @@ public class MaestroMetricsCollector implements MetricsReporter, ClusterResource
     @Override
     public void metricRemoval(KafkaMetric metric) {
         synchronized (LOCK) {
-            metrics.remove(new MetricKey(prefix, metric.metricName().name()));
+            metrics.remove(new MetricKey(prefix, metric.metricName().name(), metric.metricName().tags()));
         }
     }
 

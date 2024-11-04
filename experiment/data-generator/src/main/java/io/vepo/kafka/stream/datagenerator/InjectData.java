@@ -3,6 +3,7 @@ package io.vepo.kafka.stream.datagenerator;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -32,6 +34,7 @@ import org.slf4j.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.github.bucket4j.Bucket;
 import io.vepo.maestro.experiment.data.TrainInfo;
@@ -152,8 +155,8 @@ public class InjectData implements Callable<Integer> {
         configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configs.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configs.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configs.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10485760);
-	//configs.put(ProducerConfig.BATCH_SIZE_CONFIG, 512);
+        configs.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 104857600);
+	    configs.put(ProducerConfig.BATCH_SIZE_CONFIG, 10);
 	//configs.put(ProducerConfig.LINGER_MS_CONFIG, 5);
 	//configs.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 45000);
 
@@ -259,6 +262,17 @@ public class InjectData implements Callable<Integer> {
         histogram.forEach((k, v) -> logger.info("Key {} has {} records", k, v));
     }
 
+    private static final String RND_STRING;
+
+    static {
+        Random random = new SecureRandom();
+        RND_STRING = random.ints('0', 'z' + 1)
+                .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
+                .limit(1024 * 128) // 0.128MB because max.message.bytes is 1MB
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                .toString();
+    }
+
     private Stream<TrainMoviment> findTrainData() {
         var objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         var trainInfoFiles = findAllFiles(dataDirectory.toPath(), ".json");
@@ -266,9 +280,22 @@ public class InjectData implements Callable<Integer> {
                              .flatMap(file -> {
                                  try (var inputStream = Files.newInputStream(file)) {
                                      var trainMoviment = new ArrayList<TrainMoviment>();
-                                     var data = objectMapper.readValue(inputStream, TrainInfo[].class);
-                                     for (var train : data) {
-                                         trainMoviment.add(train.body());
+                                    //  logger.info("LARGE_DATA: {}", Boolean.valueOf(System.getenv("LARGE_DATA")));
+                                     if (Boolean.valueOf(System.getenv("LARGE_DATA"))) {
+                                         var data = objectMapper.readValue(inputStream, TrainInfo[].class);
+                                         for (var train : data) {
+                                            var body = train.body();
+                                            var bodyTree = objectMapper.readTree(objectMapper.writeValueAsString(body));
+                                            // logger.info("Read data: {}", bodyTree);
+                                            ((ObjectNode) bodyTree).put("correction_ind", RND_STRING);
+                                            // logger.info("Used data: {}", objectMapper.treeToValue(bodyTree, TrainMoviment.class));
+                                            trainMoviment.add(objectMapper.treeToValue(bodyTree, TrainMoviment.class));
+                                         }
+                                     } else {
+                                        var data = objectMapper.readValue(inputStream, TrainInfo[].class);
+                                        for (var train : data) {
+                                            trainMoviment.add(train.body());
+                                        }
                                      }
                                      return trainMoviment.stream();
                                  } catch (Exception e) {

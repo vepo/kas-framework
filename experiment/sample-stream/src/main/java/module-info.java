@@ -1,5 +1,5 @@
 module maestro.experiment.sampleStream {
-    requires kafka.streams;
+    requires transitive kafka.streams;
     requires kafka.clients;
     requires org.slf4j;
     requires com.fasterxml.jackson.databind;

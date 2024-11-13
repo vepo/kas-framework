@@ -9,7 +9,7 @@ import org.apache.kafka.streams.errors.StreamsException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.vepo.kafka.stream.sample.SampleStream.TrainInfo;
+import io.vepo.kafka.stream.sample.TrainInfo;
 
 public class TrainInfoSerde implements Serde<TrainInfo> {
 

@@ -39,12 +39,6 @@ public class SampleStream {
 
     private static final Logger logger = LoggerFactory.getLogger(SampleStream.class);
 
-    public record TrainInfo(String id, String event, long plannedTimestamp, long actualTimestamp, long delay) {
-    }
-
-    public record TrainSpeed(int departure, int arrival) {
-    }
-
     public record Parameter(String key, int value) {
     }
 
@@ -297,39 +291,7 @@ public class SampleStream {
             Thread.currentThread().interrupt();
         }
         logger.info("Starting Streamer");
-        var builder = new StreamsBuilder();
-        switch(System.getenv("PIPELINE")) {
-            case "AGGREGATION":
-                builder.<String, TrainMoviment>stream("train.moviment")
-                       .groupByKey()
-                       .windowedBy(TimeWindows.of(Duration.ofMinutes(2)))
-                       .aggregate(
-                                  () -> new TrainSpeed(0, 0),
-                                  (key, value, aggregate) -> switch (value.eventType()) {
-                                      case "DEPARTURE" -> new TrainSpeed(aggregate.departure() + 1, aggregate.arrival());
-                                      case "ARRIVAL" -> new TrainSpeed(aggregate.departure(), aggregate.arrival() + 1);
-                                      default -> aggregate;
-                                  },
-                                  Materialized.<String, TrainSpeed, WindowStore<Bytes, byte[]>>as("train-speed-store-" + System.getenv("TEST_ID"))
-                                              .withKeySerde(Serdes.String())
-                                              .withValueSerde(new TrainSpeedSerde()))
-                       .toStream()
-                       // .peek((key, value) -> System.out.println("Key: " + key + " Value: " + value))
-                       .to("train.event-summary-" + System.getenv("TEST_ID"), Produced.with(WindowedSerdes.timeWindowedSerdeFrom(String.class), new TrainSpeedSerde()));
-                break;
-            case "TRANSFORM":
-                builder.<String, TrainMoviment>stream("train.moviment")
-                       .mapValues(data -> new TrainInfo(data.trainId(), 
-                                                        data.eventType(), 
-                                                        Optional.ofNullable(data.plannedTimestamp()).map(Long::valueOf).orElse(Long.valueOf(data.actualTimestamp())),
-                                                        Long.valueOf(data.actualTimestamp()),
-                                                        Long.valueOf(data.actualTimestamp()) - Optional.ofNullable(data.plannedTimestamp()).map(Long::valueOf).orElse(Long.valueOf(data.actualTimestamp()))))
-                       .to("train.info-" + System.getenv("TEST_ID"), Produced.with(Serdes.String(), new TrainInfoSerde()));
-                break;
-            default:
-              throw new RuntimeException("Invalid pipeline! pipeline=" + System.getenv("PIPELINE"));
-
-        }
+       
 
         Properties props = new Properties();
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-0:9092,kafka-1:9094,kafka-2:9096");
@@ -339,7 +301,7 @@ public class SampleStream {
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, Integer.valueOf(System.getenv("THREADS")));
         props.put(MaestroConfigs.MAESTRO_PARAMETER_NAME_CONFIG, parameter.key());
         props.put(MaestroConfigs.MAESTRO_PARAMETER_VALUE_CONFIG, parameter.value());
-        try(var maestroStream = MaestroStream.create(builder.build(), props)) {
+        try(var maestroStream = MaestroStream.create(TopologyProvider.get(System.getenv("PIPELINE"), System.getenv("TEST_ID")) , props)) {
             var countDown = new CountDownLatch(1);
             maestroStream.cleanUp();
             PerformanceOptimizer.collecting.set(false);

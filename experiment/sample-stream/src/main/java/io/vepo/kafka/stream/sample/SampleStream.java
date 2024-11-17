@@ -3,37 +3,23 @@ package io.vepo.kafka.stream.sample;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
-import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
-import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.Serdes.StringSerde;
-import org.apache.kafka.common.utils.Bytes;
-import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.Materialized;
-import org.apache.kafka.streams.kstream.Produced;
-import org.apache.kafka.streams.kstream.SessionWindows;
-import org.apache.kafka.streams.kstream.TimeWindows;
-import org.apache.kafka.streams.kstream.WindowedSerdes;
-import org.apache.kafka.streams.state.WindowStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.vepo.kafka.maestro.MaestroConfigs;
-import io.vepo.kafka.maestro.MaestroStream;
-import io.vepo.kafka.maestro.metrics.PerformanceOptimizer;
-import io.vepo.kafka.stream.sample.SampleStream.TrainSpeed;
+import io.vepo.kafka.stream.sample.metrics.MetricsCollector;
 import io.vepo.kafka.stream.sample.serde.JsonSerde;
-import io.vepo.kafka.stream.sample.serde.TrainSpeedSerde;
-import io.vepo.kafka.stream.sample.serde.TrainInfoSerde;
-import io.vepo.maestro.experiment.data.TrainMoviment;
 
 public class SampleStream {
 
@@ -286,7 +272,7 @@ public class SampleStream {
     private static void startStream(String appId, Parameter parameter) {
         logger.info("Waiting lag grow.... 10 minutes");
         try {
-            Thread.sleep(Duration.ofMinutes(10).toMillis());
+            Thread.sleep(Duration.ofSeconds(10).toMillis());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -299,19 +285,16 @@ public class SampleStream {
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, StringSerde.class);
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, Integer.valueOf(System.getenv("THREADS")));
-        props.put(MaestroConfigs.MAESTRO_PARAMETER_NAME_CONFIG, parameter.key());
-        props.put(MaestroConfigs.MAESTRO_PARAMETER_VALUE_CONFIG, parameter.value());
-        try(var maestroStream = MaestroStream.create(TopologyProvider.get(System.getenv("PIPELINE"), System.getenv("TEST_ID")) , props)) {
+        props.put(StreamsConfig.METRIC_REPORTER_CLASSES_CONFIG, MetricsCollector.class.getName());
+        props.put(parameter.key(), parameter.value());
+        try(var maestroStream = new KafkaStreams(TopologyProvider.get(System.getenv("PIPELINE"), System.getenv("TEST_ID")) , props)) {
             var countDown = new CountDownLatch(1);
             maestroStream.cleanUp();
-            PerformanceOptimizer.collecting.set(false);
             var taskExecutor = Executors.newSingleThreadScheduledExecutor();
-            PerformanceOptimizer.collecting.set(true);
 
             // taskExecutor.schedule(() -> {
             // }, 5, TimeUnit.MINUTES);
             taskExecutor.schedule(() -> {
-                PerformanceOptimizer.collecting.set(false);
                 maestroStream.close();
                 countDown.countDown();
             }, 15, TimeUnit.MINUTES);

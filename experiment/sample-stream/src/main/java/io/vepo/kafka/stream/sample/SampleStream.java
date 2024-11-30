@@ -272,7 +272,7 @@ public class SampleStream {
     private static void startStream(String appId, Parameter parameter) {
         logger.info("Waiting lag grow.... 10 minutes");
         try {
-            Thread.sleep(Duration.ofSeconds(10).toMillis());
+            Thread.sleep(Duration.ofMinutes(10).toMillis());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

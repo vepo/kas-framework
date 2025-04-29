@@ -32,6 +32,9 @@ public class MetricWriter {
             "emit-final-records-rate",
             "outgoing-byte-rate",
             "incoming-byte-rate",
+            "fetch-size-avg",
+            "fetch-latency-avg",
+            "assigned-partitions",
             "cpu-load",
             "memory-free",
             "memory-usage");

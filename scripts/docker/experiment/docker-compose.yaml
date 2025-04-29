@@ -7,7 +7,7 @@ services:
       mode: replicated
       replicas: 6
     environment:
-      LARGE_DATA: true
+      LARGE_DATA: false
     volumes:
       - ./runtime:/app
     networks:
@@ -25,21 +25,27 @@ services:
           memory: 1.5gb
     environment:
       APP_ID: stream-default
-      PARAMETER_NAME: consumer.max.partition.fetch.bytes
-      PARAMETER_VALUE: 1048576
-      # PARAMETER_NAME: fetch.max.bytes
+      # PARAMETER_NAME: consumer.max.partition.fetch.bytes
+      # PARAMETER_VALUE: 1048576
+      # PARAMETER_NAME: consumer.fetch.max.bytes
       # PARAMETER_VALUE: 52428800
-      # PARAMETER_NAME: max.poll.records
+      # PARAMETER_NAME: consumer.max.poll.records
       # PARAMETER_VALUE: 500
-      # PARAMETER_NAME: receive.buffer.bytes
+      # PARAMETER_NAME: consumer.fetch.min.bytes
+      # PARAMETER_VALUE: 512
+      # PARAMETER_NAME: consumer.fetch.max.wait.ms
+      # PARAMETER_VALUE: 500
+      # PARAMETER_NAME: consumer.receive.buffer.bytes
       # PARAMETER_VALUE: 65536
-      # PARAMETER_NAME: send.buffer.bytes
+      # PARAMETER_NAME: producer.send.buffer.bytes
       # PARAMETER_VALUE: 131072
+      PARAMETER_NAME: producer.linger.ms
+      PARAMETER_VALUE: 10
       STATS_FOLDER: /app/stats
       THREADS: 4
       TEST_ID: default
-      # PIPELINE: TRANSFORM
-      PIPELINE: AGGREGATION
+      PIPELINE: TRANSFORM
+      # PIPELINE: AGGREGATION
     volumes:
       - ./runtime:/app
       - ./stats/default:/app/stats
@@ -58,21 +64,27 @@ services:
           memory: 1.5gb
     environment:
       APP_ID: stream-low
-      PARAMETER_NAME: consumer.max.partition.fetch.bytes
-      PARAMETER_VALUE: 786432
-      # PARAMETER_NAME: fetch.max.bytes
+      # PARAMETER_NAME: consumer.max.partition.fetch.bytes
+      # PARAMETER_VALUE: 786432
+      # PARAMETER_NAME: consumer.fetch.max.bytes
       # PARAMETER_VALUE: 39321600
-      # PARAMETER_NAME: max.poll.records
-      # PARAMETER_VALUE: 3754
-      # PARAMETER_NAME: receive.buffer.bytes
+      # PARAMETER_NAME: consumer.max.poll.records
+      # PARAMETER_VALUE: 375
+      # PARAMETER_NAME: consumer.fetch.min.bytes
+      # PARAMETER_VALUE: 1
+      # PARAMETER_NAME: consumer.fetch.max.wait.ms
+      # PARAMETER_VALUE: 375
+      # PARAMETER_NAME: consumer.receive.buffer.bytes
       # PARAMETER_VALUE: 49152
-      # PARAMETER_NAME: send.buffer.bytes
+      # PARAMETER_NAME: producer.send.buffer.bytes
       # PARAMETER_VALUE: 98304
+      PARAMETER_NAME: producer.linger.ms
+      PARAMETER_VALUE: 0
       STATS_FOLDER: /app/stats
       THREADS: 4
       TEST_ID: low
-      # PIPELINE: TRANSFORM
-      PIPELINE: AGGREGATION
+      PIPELINE: TRANSFORM
+      # PIPELINE: AGGREGATION
     volumes:
       - ./runtime:/app
       - ./stats/low:/app/stats
@@ -91,21 +103,27 @@ services:
           memory: 1.5gb
     environment:
       APP_ID: stream-high
-      PARAMETER_NAME: consumer.max.partition.fetch.bytes
-      PARAMETER_VALUE: 1310720
-      # PARAMETER_NAME: fetch.max.bytes
+      # PARAMETER_NAME: consumer.max.partition.fetch.bytes
+      # PARAMETER_VALUE: 1310720
+      # PARAMETER_NAME: consumer.fetch.max.bytes
       # PARAMETER_VALUE: 65536000
-      # PARAMETER_NAME: max.poll.records
+      # PARAMETER_NAME: consumer.max.poll.records
       # PARAMETER_VALUE: 625
-      # PARAMETER_NAME: receive.buffer.bytes
+      # PARAMETER_NAME: consumer.fetch.min.bytes
+      # PARAMETER_VALUE: 8192
+      # PARAMETER_NAME: consumer.fetch.max.wait.ms
+      # PARAMETER_VALUE: 625
+      # PARAMETER_NAME: consumer.receive.buffer.bytes
       # PARAMETER_VALUE: 81920
-      # PARAMETER_NAME: send.buffer.bytes
+      # PARAMETER_NAME: producer.send.buffer.bytes
       # PARAMETER_VALUE: 163840
+      PARAMETER_NAME: producer.linger.ms
+      PARAMETER_VALUE: 50
       STATS_FOLDER: /app/stats
       THREADS: 4
       TEST_ID: high
-      # PIPELINE: TRANSFORM
-      PIPELINE: AGGREGATION
+      PIPELINE: TRANSFORM
+      # PIPELINE: AGGREGATION
     volumes:
       - ./runtime:/app
       - ./stats/high:/app/stats

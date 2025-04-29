@@ -19,7 +19,7 @@
     <name>Maestro :: Experiment :: Data Generatior</name>
 
     <properties>
-        <main.class>io.vepo.kafka.stream.datagenerator.InjectData</main.class>
+        <main.class>dev.vepo.maestro.experiment.data.generator.DataGenerator</main.class>
     </properties>
 
     <dependencies>

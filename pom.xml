@@ -17,12 +17,12 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
-    <version.kafka>3.7.0</version.kafka>
+    <version.kafka>4.0.0</version.kafka>
   </properties>
 
   <modules>
     <module>experiment</module>
-    <module>library</module>
+    <!--module>library</module-->
   </modules>
 
   <dependencyManagement>

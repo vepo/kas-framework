@@ -18,8 +18,8 @@
 
     <name>Maestro :: Experiment</name>
     <modules>
-        <module>data-model</module>
+        <!--module>data-model</module-->
         <module>data-generator</module>
-        <module>sample-stream</module>
+        <!--module>sample-stream</module-->
     </modules>
 </project>

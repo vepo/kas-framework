@@ -1,7 +1,7 @@
 version: '3'
 services:
   kafka-0:
-    image: vepo/kafka:3.7.0
+    image: vepo/kafka:4.0.0
     container_name: kafka-0
     ports:
      - 9092:9092
@@ -21,7 +21,7 @@ services:
     networks:
       - maestro-network
   kafka-1:
-    image: vepo/kafka:3.7.0
+    image: vepo/kafka:4.0.0
     container_name: kafka-1
     ports:
      - 9094:9094
@@ -41,7 +41,7 @@ services:
     networks:
       - maestro-network
   kafka-2:
-    image: vepo/kafka:3.7.0
+    image: vepo/kafka:4.0.0
     container_name: kafka-2
     ports:
      - 9096:9096

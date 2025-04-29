@@ -7,5 +7,5 @@ module maestro.experiment.dataGenerator {
     requires stomp4j;
 
     requires maestro.experiment.dataModel;
-    exports io.vepo.kafka.stream.datagenerator;
+    exports dev.vepo.maestro.experiment.data.generator;
 }

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Define paths
+JAR_PATH="experiment/data-generator/target/data-generator-jar-with-dependencies.jar"
+PROJECT_DIR="experiment/data-generator"
+
+# Check if the JAR file exists
+if [ ! -f "$JAR_PATH" ]; then
+    echo "JAR file not found. Building with Maven..."
+    
+    # Navigate to the project directory
+    cd "$PROJECT_DIR" || { echo "Error: Could not enter project directory"; exit 1; }
+    
+    # Run Maven clean and package
+    mvn clean package
+    
+    # Check if build was successful
+    if [ $? -ne 0 ]; then
+        echo "Error: Maven build failed"
+        exit 1
+    fi
+    
+    # Return to original directory
+    cd - > /dev/null
+    
+    # Verify the JAR was created
+    if [ ! -f "$JAR_PATH" ]; then
+        echo "Error: JAR file still not found after build"
+        exit 1
+    fi
+fi
+
+# Execute the JAR
+echo "Executing JAR..."
+java -jar "$JAR_PATH"

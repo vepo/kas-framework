@@ -6,6 +6,5 @@ module maestro.experiment.dataGenerator {
     requires io.github.bucket4j.core;
     requires stomp4j;
 
-    requires maestro.experiment.dataModel;
     exports dev.vepo.maestro.experiment.data.generator;
 }

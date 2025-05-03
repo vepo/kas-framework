@@ -6,12 +6,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.vepo.kafka</groupId>
+        <groupId>dev.vepo.kafka</groupId>
         <artifactId>experiment</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <groupId>io.vepo.kafka</groupId>
+    <groupId>dev.vepo.kafka</groupId>
     <artifactId>sample-stream</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
@@ -32,11 +32,6 @@
             <artifactId>kafka-clients</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.vepo.kafka</groupId>
-            <artifactId>data-model</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
@@ -47,6 +42,11 @@
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.vepo.kafka</groupId>
+            <artifactId>maestro</artifactId>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
 

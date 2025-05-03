@@ -19,9 +19,12 @@ services:
     #       memory: 1.5gb
     #     reservations:
     #       cpus: '0.5'
-    #       memory: 1.5gb   
+    #       memory: 1.5gb
+    environment:
+      STATS_FOLDER: /app/stats
     volumes:
       - ./runtime:/app
+      - ./stats/default:/app/stats
     networks:
       - maestro-network
 networks:

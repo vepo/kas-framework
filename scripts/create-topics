@@ -1,5 +1,5 @@
 #!/bin/bash
 
-docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vehicle.moviment                                      --partitions 16 --replication-factor 2
-docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vehicle.info.store-changelog                          --partitions 16 --replication-factor 2
-docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vehicle.stats                                         --partitions 16 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vehicle-moviment                                      --partitions 16 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vehicle-info-store-changelog                          --partitions 16 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vehicle-stats                                         --partitions 16 --replication-factor 2

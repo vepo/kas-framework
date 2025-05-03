@@ -4,7 +4,7 @@ module maestro.experiment.sampleStream {
     requires kafka.clients;
     requires org.slf4j;
     requires com.fasterxml.jackson.databind;
+    requires maestro.kafkaStream;
 
-    requires maestro.experiment.dataModel;
     requires info.picocli;
 }

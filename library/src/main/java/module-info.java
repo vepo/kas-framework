@@ -4,6 +4,5 @@ module maestro.kafkaStream {
     requires org.slf4j;
     requires java.management;
 
-    exports io.vepo.kafka.maestro;
-    exports io.vepo.kafka.maestro.metrics;
+    exports dev.vepo.kafka.maestro.metrics;
 }

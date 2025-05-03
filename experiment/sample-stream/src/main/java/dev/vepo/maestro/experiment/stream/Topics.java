@@ -1,9 +1,9 @@
 package dev.vepo.maestro.experiment.stream;
 
 public enum Topics {
-    VEHICLE_MOVIMENT("vehicle.moviment"),
-    VEHICLE_INFO_STORE("vehicle.info.store"),
-    VEHICLE_STATS("vehicle.stats");
+    VEHICLE_MOVIMENT("vehicle-moviment"),
+    VEHICLE_INFO_STORE("vehicle-info-store"),
+    VEHICLE_STATS("vehicle-stats");
 
     private String name;
 

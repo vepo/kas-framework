@@ -1,6 +1,3 @@
 #!/bin/bash
 
-rm -rf ./charts/*
-rm -rf ./stats/*
-rm -f stats.csv
 rm -f scripts/docker/experiment/stats/*/*.txt

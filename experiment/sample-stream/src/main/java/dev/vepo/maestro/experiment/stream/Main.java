@@ -25,6 +25,7 @@ import org.apache.kafka.streams.state.WindowStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import dev.vepo.kafka.maestro.metrics.PerformanceMetricsCollector;
 import dev.vepo.maestro.experiment.stream.model.VehicleInfo;
 import dev.vepo.maestro.experiment.stream.model.VehicleSpeed;
 import dev.vepo.maestro.experiment.stream.serdes.JsonSerde;
@@ -60,7 +61,7 @@ public class Main implements Runnable {
 
         logger.info("Waiting lag grow.... 10 minutes");
         try {
-            Thread.sleep(Duration.ofMinutes(10).toMillis());
+            Thread.sleep(Duration.ofMinutes(1).toMillis());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -72,9 +73,7 @@ public class Main implements Runnable {
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, StringSerde.class);
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
-        // props.put(StreamsConfig.METRIC_REPORTER_CLASSES_CONFIG,
-        // MetricsCollector.class.getName());
-        // props.put(parameter.key(), parameter.value());
+        props.put(StreamsConfig.METRIC_REPORTER_CLASSES_CONFIG, PerformanceMetricsCollector.class.getName());
         try (var maestroStream = new KafkaStreams(buildTopology(), props)) {
             var countDown = new CountDownLatch(1);
             maestroStream.cleanUp();
@@ -100,22 +99,22 @@ public class Main implements Runnable {
     private Topology buildTopology() {
         var builder = new StreamsBuilder();
         // Create state stores
-        var positionStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.VEHICLE_INFO_STORE.name(),
+        var positionStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.VEHICLE_INFO_STORE.topicName(),
                                                                                           Duration.ofDays(1),
                                                                                           Duration.ofMinutes(5),
                                                                                           false),
                                                              Serdes.String(),
-                                                             JsonSerde.of(VehicleInfo.class));
+                                                             JsonSerde.of(VehicleSpeed.class));
 
         // Register the stores
         builder.addStateStore(positionStoreBuilder);
 
         // Input stream from vehicles topic
-        var vehicleStream = builder.stream(Topics.VEHICLE_MOVIMENT.name(),
+        var vehicleStream = builder.stream(Topics.VEHICLE_MOVIMENT.topicName(),
                                            Consumed.with(Serdes.String(), JsonSerde.of(VehicleInfo.class)));
 
-        vehicleStream.process(() -> new VehicleInfoProcessor(), Topics.VEHICLE_INFO_STORE.name())
-                     .to(Topics.VEHICLE_STATS.name(), Produced.with(Serdes.String(), JsonSerde.of(VehicleSpeed.class)));
+        vehicleStream.process(() -> new VehicleInfoProcessor(), Topics.VEHICLE_INFO_STORE.topicName())
+                     .to(Topics.VEHICLE_STATS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(VehicleSpeed.class)));
         return builder.build();
 
     }
@@ -133,7 +132,7 @@ public class Main implements Runnable {
         @Override
         public void init(ProcessorContext<String, VehicleSpeed> context) {
             this.context = context;
-            store = context.getStateStore(Topics.VEHICLE_INFO_STORE.name());
+            store = context.getStateStore(Topics.VEHICLE_INFO_STORE.topicName());
             context.schedule(Duration.ofSeconds(10), PunctuationType.WALL_CLOCK_TIME, this::flush);
         }
 
@@ -158,25 +157,27 @@ public class Main implements Runnable {
             try (var iterator = store.fetch(value.key(), startTime, endTime)) {
                 if (iterator.hasNext()) {
                     var storedValue = iterator.next();
-                    store.put(value.value().id(),
-                              new VehicleSpeed(value.value().id(),
-                                               Math.max(value.value().speed(), storedValue.value.maxSpeed()),
-                                               Math.min(value.value().speed(), storedValue.value.minSpeed()),
-                                               ((storedValue.value.avgSpeed() * storedValue.value.counter()) + value.value().speed())
-                                                       / (storedValue.value.counter() + 1),
-                                               storedValue.value.counter() + 1),
-                              storedValue.key);
-                } else {
-                    store.put(value.value().id(),
-                              new VehicleSpeed(value.value().id(),
-                                               value.value().speed(),
-                                               value.value().speed(),
-                                               value.value().speed(),
-                                               1),
-                              value.value().timestamp());
+                    if (Objects.nonNull(storedValue.value)) {
+                        store.put(value.value().id(),
+                                  new VehicleSpeed(value.value().id(),
+                                                   Math.max(value.value().speed(), storedValue.value.maxSpeed()),
+                                                   Math.min(value.value().speed(), storedValue.value.minSpeed()),
+                                                   ((storedValue.value.avgSpeed() * storedValue.value.counter()) + value.value().speed())
+                                                           / (storedValue.value.counter() + 1),
+                                                   storedValue.value.counter() + 1),
+                                  storedValue.key);
+                        return;
+                    }
                 }
+                store.put(value.value().id(),
+                          new VehicleSpeed(value.value().id(),
+                                           value.value().speed(),
+                                           value.value().speed(),
+                                           value.value().speed(),
+                                           1),
+                          value.value().timestamp());
+
             }
         }
-
     }
 }

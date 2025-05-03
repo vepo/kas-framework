@@ -1,6 +1,7 @@
 package dev.vepo.maestro.experiment.data.generator;
 
 import java.text.DecimalFormat;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -27,6 +28,7 @@ public class DataGenerator {
         private double speed; // in km/h
         private double bearing; // in degrees (0-360)
         private boolean accelerating;
+        private long timestamp;
 
         public Vehicle(String id, double lat, double lon) {
             this.id = id;
@@ -35,6 +37,7 @@ public class DataGenerator {
             this.speed = ThreadLocalRandom.current().nextDouble(30, 80);
             this.bearing = ThreadLocalRandom.current().nextDouble(0, 360);
             this.accelerating = ThreadLocalRandom.current().nextBoolean();
+            this.timestamp = Instant.now().toEpochMilli();
         }
 
         public void updatePosition() {
@@ -80,24 +83,22 @@ public class DataGenerator {
             // Convert back to degrees
             latitude = Math.toDegrees(newLatRad);
             longitude = Math.toDegrees(newLonRad);
+            timestamp = Instant.now().toEpochMilli();
         }
 
         public String toJSON() {
-            return String.format(
-                                 "{\"vehicleId\":\"%s\",\"timestamp\":%d,\"latitude\":%s,\"longitude\":%s," +
-                                         "\"speed\":%.2f,\"bearing\":%.2f,\"acceleration\":%b}",
+            return String.format("{\"vehicleId\":\"%s\",\"timestamp\":%d,\"latitude\":%s,\"longitude\":%s," +
+                    "\"speed\":%.2f,\"bearing\":%.2f,\"acceleration\":%b,\"timestamp\":%d}",
                                  id, System.currentTimeMillis(), df.format(latitude), df.format(longitude),
-                                 speed, bearing, accelerating);
+                                 speed, bearing, accelerating, timestamp);
         }
     }
 
-    private static final String TOPIC = "car-tracking-data";
+    private static final String TOPIC = "vehicle.moviment";
     private static final String BOOTSTRAP_SERVERS = "kafka-0:9092,kafka-1:9094,kafka-2:9096";
     private static final int THREADS = Runtime.getRuntime().availableProcessors() * 2;
-    private static final int TARGET_RATE_PER_THREAD = 70000 / THREADS;
+    private static final int TARGET_RATE_PER_THREAD = 90000 / THREADS;
     private static final int NUM_VEHICLES = 1000;
-    private static final int RUN_TIME_MINUTES = 10;
-
     private static final int BATCH_SIZE = 25;
 
     private static final DecimalFormat df = new DecimalFormat("0.000000");

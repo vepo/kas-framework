@@ -6,7 +6,5 @@ module maestro.experiment.sampleStream {
     requires com.fasterxml.jackson.databind;
 
     requires maestro.experiment.dataModel;
-
-    exports io.vepo.kafka.stream.sample.serde to kafka.clients;
-    exports io.vepo.kafka.stream.sample to com.fasterxml.jackson.databind;
+    requires info.picocli;
 }

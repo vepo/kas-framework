@@ -11,10 +11,11 @@ import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MetricsRecorder implements AutoCloseable {
+public class MetricsRecorder implements MetricListener {
     private static final Logger logger = LoggerFactory.getLogger(MetricsRecorder.class);
     private static final Path DATA_PATH = Paths.get(System.getenv("STATS_FOLDER"));
 
+    @Override
     public void feed(PerformanceMetric metric) {
         try {
             Files.writeString(DATA_PATH.resolve(String.format("metric-%s.txt", metric.name())),
@@ -28,7 +29,6 @@ public class MetricsRecorder implements AutoCloseable {
 
     @Override
     public void close() {
-
     }
 
 }

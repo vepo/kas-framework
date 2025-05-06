@@ -1,0 +1,60 @@
+package dev.vepo.kafka.maestro;
+
+import java.time.Duration;
+import java.util.Map;
+import java.util.Properties;
+
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigDef.Importance;
+import org.apache.kafka.common.config.ConfigDef.Type;
+import org.apache.kafka.streams.StreamsConfig;
+
+import dev.vepo.kafka.maestro.adapter.Adapter;
+
+public class MaestroConfigs extends AbstractConfig {
+    public static final String MAESTRO_ADAPTER_INSTANCE_CONFIG = "maestro.adapter.instance";
+    public static final String MAESTRO_ADAPTER_INSTANCE_DOC = "";
+
+    public static final String MAESTRO_ADAPTER_CLASS_CONFIG = "maestro.adapter.class";
+    public static final String MAESTRO_ADAPTER_CLASS_DOC = "";
+
+    public static final String MAESTRO_ADAPTER_FREQUENCY_MS_CONFIG = "maestro.adapter.frequency.ms";
+    public static final String MAESTRO_ADAPTER_FREQUENCY_MS_DOC = "";
+
+    public static final String MAESTRO_METRICS_COLLECTION_FREQUENCY_MS_CONFIG = "maestro.metrics.collection.frequency.ms";
+    public static final String MAESTRO_METRICS_COLLECTION_FREQUENCY_MS_DOC = "";
+
+    public static final String NUM_STREAM_THREADS_CONFIG = StreamsConfig.NUM_STREAM_THREADS_CONFIG;
+    public static final String NUM_STREAM_THREADS_DOC = "The number of threads to execute stream processing.";
+
+    public static final long DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY_MS = Duration.ofSeconds(30).toMillis();
+    public static final long DEFAULT_METRICS_COLLECTION_FREQUENCY_MS = Duration.ofSeconds(15).toMillis();
+    public static final int DEFAULT_NUM_STREAM_THREADS = 2;
+
+    private static final ConfigDef CONFIG = new ConfigDef().define(MAESTRO_ADAPTER_CLASS_CONFIG, Type.CLASS, Adapter.class, Importance.LOW,
+                                                                   MAESTRO_ADAPTER_CLASS_CONFIG)
+                                                           .define(MAESTRO_ADAPTER_FREQUENCY_MS_CONFIG, Type.LONG, DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY_MS,
+                                                                   Importance.MEDIUM, MAESTRO_ADAPTER_FREQUENCY_MS_DOC)
+                                                           .define(MAESTRO_METRICS_COLLECTION_FREQUENCY_MS_CONFIG, Type.LONG,
+                                                                   DEFAULT_METRICS_COLLECTION_FREQUENCY_MS, Importance.MEDIUM,
+                                                                   MAESTRO_METRICS_COLLECTION_FREQUENCY_MS_DOC)
+                                                           .define(NUM_STREAM_THREADS_CONFIG, Type.INT, DEFAULT_NUM_STREAM_THREADS, Importance.HIGH,
+                                                                   NUM_STREAM_THREADS_DOC);
+
+    public MaestroConfigs(Map<?, ?> originals) {
+        super(CONFIG, originals);
+    }
+
+    public MaestroConfigs(Properties originals) {
+        super(CONFIG, originals);
+    }
+
+    protected MaestroConfigs(Map<?, ?> props, boolean doLog) {
+        super(CONFIG, props, doLog);
+    }
+
+    public static void main(String[] args) {
+        System.out.println(CONFIG.toHtml(4, config -> "maestroconfigs_" + config));
+    }
+}

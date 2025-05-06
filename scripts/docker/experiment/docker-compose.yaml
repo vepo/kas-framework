@@ -9,17 +9,28 @@ services:
       - ./runtime:/app
     networks:
       - maestro-network
-  stream-default:
+  stream-vanilla:
     image: openjdk:21-jdk
-    command: java -Xms1g -Xmx1g -jar /app/sample-stream-jar-with-dependencies.jar --app-id default --test-id default --type VANILLA
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '2'
-    #       memory: 1.5gb
-    #     reservations:
-    #       cpus: '0.5'
-    #       memory: 1.5gb
+    command: java -Xms1g -Xmx1g -jar /app/sample-stream-jar-with-dependencies.jar --app-id vanilla --test-id vanilla --type VANILLA
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1.5gb
+        reservations:
+          cpus: '0.5'
+          memory: 1.5gb
+  stream-maestro:
+    image: openjdk:21-jdk
+    command: java -Xms1g -Xmx1g -jar /app/sample-stream-jar-with-dependencies.jar --app-id maestro --test-id maestro --type MAESTRO
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1.5gb
+        reservations:
+          cpus: '0.5'
+          memory: 1.5gb
     environment:
       STATS_FOLDER: /app/stats
     volumes:

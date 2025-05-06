@@ -10,7 +10,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.Serdes.StringSerde;
-import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
@@ -25,6 +24,9 @@ import org.apache.kafka.streams.state.WindowStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import dev.vepo.kafka.maestro.MaestroStreams;
+import dev.vepo.kafka.maestro.Streams;
+import dev.vepo.kafka.maestro.VanillaStreams;
 import dev.vepo.kafka.maestro.metrics.PerformanceMetricsCollector;
 import dev.vepo.maestro.experiment.stream.model.VehicleInfo;
 import dev.vepo.maestro.experiment.stream.model.VehicleSpeed;
@@ -74,10 +76,10 @@ public class Main implements Runnable {
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
         props.put(StreamsConfig.METRIC_REPORTER_CLASSES_CONFIG, PerformanceMetricsCollector.class.getName());
-        try (var maestroStream = new KafkaStreams(buildTopology(), props)) {
+        try (var maestroStream = create(buildTopology(), props);
+                var taskExecutor = Executors.newSingleThreadScheduledExecutor()) {
             var countDown = new CountDownLatch(1);
             maestroStream.cleanUp();
-            var taskExecutor = Executors.newSingleThreadScheduledExecutor();
 
             // taskExecutor.schedule(() -> {
             // }, 5, TimeUnit.MINUTES);
@@ -94,6 +96,14 @@ public class Main implements Runnable {
             logger.info("Streamer stopped");
             taskExecutor.shutdown();
         }
+    }
+
+    private Streams create(Topology topology, Properties props) {
+        return switch (this.type) {
+            case VANILLA -> new VanillaStreams(topology, props);
+            case MAESTRO -> new MaestroStreams(topology, props);
+            default -> throw new IllegalStateException("Invalid type: " + this.type);
+        };
     }
 
     private Topology buildTopology() {
@@ -114,9 +124,16 @@ public class Main implements Runnable {
                                            Consumed.with(Serdes.String(), JsonSerde.of(VehicleInfo.class)));
 
         vehicleStream.process(() -> new VehicleInfoProcessor(), Topics.VEHICLE_INFO_STORE.topicName())
-                     .to(Topics.VEHICLE_STATS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(VehicleSpeed.class)));
+                     .to(output(), Produced.with(Serdes.String(), JsonSerde.of(VehicleSpeed.class)));
         return builder.build();
 
+    }
+
+    private String output() {
+        return Topics.VEHICLE_STATS.topicName() + switch (this.type) {
+            case VANILLA -> "-vanilla";
+            case MAESTRO -> "-maestro";
+        };
     }
 
     private class VehicleInfoProcessor implements Processor<String, VehicleInfo, String, VehicleSpeed> {
@@ -125,7 +142,7 @@ public class Main implements Runnable {
         private final Duration duration;
         private ProcessorContext<String, VehicleSpeed> context;
 
-        public VehicleInfoProcessor() {
+        private VehicleInfoProcessor() {
             this.duration = Duration.ofMinutes(5);
         }
 

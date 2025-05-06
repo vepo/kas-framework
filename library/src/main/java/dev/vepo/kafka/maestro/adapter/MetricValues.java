@@ -48,6 +48,9 @@ public class MetricValues {
     }
 
     public Regression regression() {
+        // Do not cache SimpleRegression
+        // For long running the imprecision can grow
+        // This is not called all the time
         var regression = new SimpleRegression(true);
         regression.addData(values.stream()
                                  .map(v -> new double[] {

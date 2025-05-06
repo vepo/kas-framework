@@ -1,6 +1,7 @@
 module maestro.kafkaStream {
     requires transitive kafka.streams;
     requires transitive kafka.clients;
+    requires transitive commons.math3;
     requires org.slf4j;
     requires java.management;
     requires com.github.oshi;

@@ -12,7 +12,7 @@ public class StreamsHealtyMetrics extends AbstractMaestroMetrics {
 
     private Adapter adapter;
     
-    protected StreamsHealtyMetrics() {
+    public StreamsHealtyMetrics() {
         super(LOCK);
     }
 

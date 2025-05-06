@@ -9,25 +9,23 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import dev.vepo.kafka.maestro.MaestroConfigs;
 
-public abstract class MaestroMetrics implements MetricsReporter {
-    private static final Logger logger = LoggerFactory.getLogger(MaestroMetrics.class);
-
+public abstract class AbstractMaestroMetrics implements MetricsReporter {
     private final Object lock;
     private final Map<MetricKey, KafkaMetric> metrics;
     private final ScheduledExecutorService executor;
     private String prefix;
     private EnvironmentMetrics environmentMetrics;
     private ScheduledFuture<?> scheduled;
+    private final static Map<Class<? extends AbstractMaestroMetrics>, AtomicInteger> instanceCounter = new HashMap<>();
 
-    protected MaestroMetrics(Object lock) {
+    protected AbstractMaestroMetrics(Object lock) {
         this.lock = lock;
         prefix = "";
         metrics = Collections.synchronizedMap(new HashMap<>());
@@ -41,40 +39,41 @@ public abstract class MaestroMetrics implements MetricsReporter {
     @Override
     public void configure(Map<String, ?> configs) {
         var mConfigs = new MaestroConfigs(configs);
-        var frequencyInMs = mConfigs.getLong(MaestroConfigs.MAESTRO_METRICS_COLLECTION_FREQUENCY_MS_CONFIG);
-        synchronized (lock) {
+        var frequencyInMs = mConfigs.getLong(MaestroConfigs.MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG);
+        synchronized (getClass()) {
             if (Objects.isNull(scheduled)) {
-                logger.info("Scheduling new collector task!");
+                // to avoid duplicated data only the first object will scrap JVM metrics
+                var scrapJvmMetrics = instanceCounter.computeIfAbsent(getClass(), (_class) -> new AtomicInteger(0)).getAndIncrement() == 0;
                 scheduled = executor.scheduleAtFixedRate(() -> {
                     metrics.forEach((key, value) -> {
                         if (value.metricValue() instanceof Number statValue && (!(statValue instanceof Double) || !Double.isNaN((double) statValue))) {
                             if (value.metricName().tags().containsKey("topic") && value.metricName().tags().containsKey("partition")) {
                                 process(new PerformanceMetric(key.scope(),
-                                                              key.name() + "-" + value.metricName().tags().get("topic") + "-"
-                                                                      + value.metricName().tags().get("partition"),
+                                                              key.name(),
                                                               value.metricName().tags().get("client-id"),
                                                               statValue,
-                                                              System.currentTimeMillis()));
+                                                              value.metricName().tags().get("topic"),
+                                                              Integer.valueOf(value.metricName().tags().get("partition"))));
                             } else if (value.metricName().tags().containsKey("topic")) {
-                                process(new PerformanceMetric(key.scope(),
-                                                              key.name() + "-" + value.metricName().tags().get("topic"),
-                                                              value.metricName().tags().get("client-id"),
-                                                              statValue,
-                                                              System.currentTimeMillis()));
-                            } else {
                                 process(new PerformanceMetric(key.scope(),
                                                               key.name(),
                                                               value.metricName().tags().get("client-id"),
                                                               statValue,
-                                                              System.currentTimeMillis()));
+                                                              value.metricName().tags().get("topic")));
+                            } else {
+                                process(new PerformanceMetric(key.scope(),
+                                                              key.name(),
+                                                              value.metricName().tags().get("client-id"),
+                                                              statValue));
                             }
                         }
                     });
-                    logger.info("Collecting environment data!");
-                    process(new PerformanceMetric("environment", "cpu-used", "jvm", environmentMetrics.cpuUsed(), System.currentTimeMillis()));
-                    process(new PerformanceMetric("environment", "cpu-total", "jvm", environmentMetrics.cpuTotal(), System.currentTimeMillis()));
-                    process(new PerformanceMetric("environment", "memory-total", "jvm", environmentMetrics.memoryTotal(), System.currentTimeMillis()));
-                    process(new PerformanceMetric("environment", "memory-used", "jvm", environmentMetrics.memoryUsed(), System.currentTimeMillis()));
+                    if (scrapJvmMetrics) {
+                        process(new PerformanceMetric("cpu-used", environmentMetrics.cpuUsed()));
+                        process(new PerformanceMetric("cpu-total", environmentMetrics.cpuTotal()));
+                        process(new PerformanceMetric("memory-total", environmentMetrics.memoryTotal()));
+                        process(new PerformanceMetric("memory-used", environmentMetrics.memoryUsed()));
+                    }
                 }, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
             }
         }
@@ -105,6 +104,9 @@ public abstract class MaestroMetrics implements MetricsReporter {
     public void close() {
         if (Objects.nonNull(scheduled)) {
             scheduled.cancel(false);
+            if (instanceCounter.computeIfAbsent(getClass(), (_class) -> new AtomicInteger(0)).decrementAndGet() == 0) {
+                instanceCounter.remove(getClass());
+            }
         }
     }
 

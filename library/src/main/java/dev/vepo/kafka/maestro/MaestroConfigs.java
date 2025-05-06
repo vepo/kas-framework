@@ -22,24 +22,53 @@ public class MaestroConfigs extends AbstractConfig {
     public static final String MAESTRO_ADAPTER_FREQUENCY_MS_CONFIG = "maestro.adapter.frequency.ms";
     public static final String MAESTRO_ADAPTER_FREQUENCY_MS_DOC = "";
 
-    public static final String MAESTRO_METRICS_COLLECTION_FREQUENCY_MS_CONFIG = "maestro.metrics.collection.frequency.ms";
-    public static final String MAESTRO_METRICS_COLLECTION_FREQUENCY_MS_DOC = "";
+    public static final String MAESTRO_ADAPTER_HISTORY_SIZE_MAX_CONFIG = "maestro.adapter.history.size.max";
+    public static final String MAESTRO_ADAPTER_HISTORY_SIZE_MAX_DOC = "";
+
+    public static final String MAESTRO_ADAPTER_HISTORY_SIZE_MIN_CONFIG = "maestro.adapter.history.size.min";
+    public static final String MAESTRO_ADAPTER_HISTORY_SIZE_MIN_DOC = "";
+
+    public static final String MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG = "maestro.metrics.collector.frequency.ms";
+    public static final String MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_DOC = "";
 
     public static final String NUM_STREAM_THREADS_CONFIG = StreamsConfig.NUM_STREAM_THREADS_CONFIG;
     public static final String NUM_STREAM_THREADS_DOC = "The number of threads to execute stream processing.";
 
-    public static final long DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY_MS = Duration.ofSeconds(30).toMillis();
-    public static final long DEFAULT_METRICS_COLLECTION_FREQUENCY_MS = Duration.ofSeconds(15).toMillis();
+    public static final Duration DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY = Duration.ofSeconds(30);
+    public static final Duration DEFAULT_METRICS_COLLECTION_FREQUENCY = Duration.ofSeconds(15);
     public static final int DEFAULT_NUM_STREAM_THREADS = 2;
+    public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MAX = (int) Duration.ofMinutes(60).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY);
+    public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN = (int) Duration.ofMinutes(5).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY);
 
-    private static final ConfigDef CONFIG = new ConfigDef().define(MAESTRO_ADAPTER_CLASS_CONFIG, Type.CLASS, Adapter.class, Importance.LOW,
+    private static final ConfigDef CONFIG = new ConfigDef().define(MAESTRO_ADAPTER_CLASS_CONFIG,
+                                                                   Type.CLASS,
+                                                                   Adapter.class,
+                                                                   Importance.LOW,
                                                                    MAESTRO_ADAPTER_CLASS_CONFIG)
-                                                           .define(MAESTRO_ADAPTER_FREQUENCY_MS_CONFIG, Type.LONG, DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY_MS,
-                                                                   Importance.MEDIUM, MAESTRO_ADAPTER_FREQUENCY_MS_DOC)
-                                                           .define(MAESTRO_METRICS_COLLECTION_FREQUENCY_MS_CONFIG, Type.LONG,
-                                                                   DEFAULT_METRICS_COLLECTION_FREQUENCY_MS, Importance.MEDIUM,
-                                                                   MAESTRO_METRICS_COLLECTION_FREQUENCY_MS_DOC)
-                                                           .define(NUM_STREAM_THREADS_CONFIG, Type.INT, DEFAULT_NUM_STREAM_THREADS, Importance.HIGH,
+                                                           .define(MAESTRO_ADAPTER_FREQUENCY_MS_CONFIG,
+                                                                   Type.LONG,
+                                                                   DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY.toMillis(),
+                                                                   Importance.MEDIUM,
+                                                                   MAESTRO_ADAPTER_FREQUENCY_MS_DOC)
+                                                           .define(MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG,
+                                                                   Type.LONG,
+                                                                   DEFAULT_METRICS_COLLECTION_FREQUENCY.toMillis(),
+                                                                   Importance.MEDIUM,
+                                                                   MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_DOC)
+                                                           .define(MAESTRO_ADAPTER_HISTORY_SIZE_MAX_CONFIG,
+                                                                   Type.INT,
+                                                                   DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MAX,
+                                                                   Importance.MEDIUM,
+                                                                   MAESTRO_ADAPTER_HISTORY_SIZE_MAX_DOC)
+                                                           .define(MAESTRO_ADAPTER_HISTORY_SIZE_MIN_CONFIG,
+                                                                   Type.INT,
+                                                                   DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN,
+                                                                   Importance.MEDIUM,
+                                                                   MAESTRO_ADAPTER_HISTORY_SIZE_MIN_DOC)
+                                                           .define(NUM_STREAM_THREADS_CONFIG,
+                                                                   Type.INT,
+                                                                   DEFAULT_NUM_STREAM_THREADS,
+                                                                   Importance.HIGH,
                                                                    NUM_STREAM_THREADS_DOC);
 
     public MaestroConfigs(Map<?, ?> originals) {

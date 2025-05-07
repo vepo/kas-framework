@@ -9,10 +9,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
+import org.apache.kafka.streams.StreamsConfig;
 
 import dev.vepo.kafka.maestro.MaestroConfigs;
 
@@ -22,61 +22,72 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
     private final ScheduledExecutorService executor;
     private String prefix;
     private EnvironmentMetrics environmentMetrics;
-    private ScheduledFuture<?> scheduled;
-    private final static Map<Class<? extends AbstractMaestroMetrics>, AtomicInteger> instanceCounter = new HashMap<>();
+    private ScheduledFuture<?> mainCollector;
+    private ScheduledFuture<?> jvmCollector;
 
     protected AbstractMaestroMetrics(Object lock) {
         this.lock = lock;
         prefix = "";
         metrics = Collections.synchronizedMap(new HashMap<>());
         executor = Executors.newSingleThreadScheduledExecutor();
-        this.environmentMetrics = new EnvironmentMetrics();
-        this.scheduled = null;
+        this.environmentMetrics = null;
+        this.mainCollector = null;
+        this.jvmCollector = null;
     }
 
     protected abstract void process(PerformanceMetric metric);
+
+    private void startJvmMetricsCollector(Map<String, ?> configs, Long frequencyInMs) {
+        // Check if the client is the Streams, not the producer, consumer or admin
+        // client
+        if (configs.containsKey(StreamsConfig.APPLICATION_ID_CONFIG) && configs.containsKey(StreamsConfig.CLIENT_ID_CONFIG)) {
+            var clientId = (String) configs.get(StreamsConfig.CLIENT_ID_CONFIG);
+            if (Objects.nonNull(clientId) && !clientId.endsWith("-admin") && !clientId.endsWith("-producer") && !clientId.endsWith("-admin")) {
+                this.environmentMetrics = new EnvironmentMetrics();
+                jvmCollector = executor.scheduleAtFixedRate(this::collectJvmMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
+            }
+        }
+    }
+
+    private void collectJvmMetrics() {
+        process(new PerformanceMetric("cpu-used", environmentMetrics.cpuUsed()));
+        process(new PerformanceMetric("cpu-total", environmentMetrics.cpuTotal()));
+        process(new PerformanceMetric("memory-total", environmentMetrics.memoryTotal()));
+        process(new PerformanceMetric("memory-used", environmentMetrics.memoryUsed()));
+    }
+
+    private void collectMainMetrics() {
+        metrics.forEach((key, value) -> {
+            if (value.metricValue() instanceof Number statValue && (!(statValue instanceof Double) || !Double.isNaN((double) statValue))) {
+                if (value.metricName().tags().containsKey("topic") && value.metricName().tags().containsKey("partition")) {
+                    process(new PerformanceMetric(key.scope(),
+                            key.name(),
+                            value.metricName().tags().get("client-id"),
+                            statValue,
+                            value.metricName().tags().get("topic"),
+                            Integer.valueOf(value.metricName().tags().get("partition"))));
+                } else if (value.metricName().tags().containsKey("topic")) {
+                    process(new PerformanceMetric(key.scope(),
+                            key.name(),
+                            value.metricName().tags().get("client-id"),
+                            statValue,
+                            value.metricName().tags().get("topic")));
+                } else {
+                    process(new PerformanceMetric(key.scope(),
+                            key.name(),
+                            value.metricName().tags().get("client-id"),
+                            statValue));
+                }
+            }
+        });
+    }
 
     @Override
     public void configure(Map<String, ?> configs) {
         var mConfigs = new MaestroConfigs(configs);
         var frequencyInMs = mConfigs.getLong(MaestroConfigs.MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG);
-        synchronized (getClass()) {
-            if (Objects.isNull(scheduled)) {
-                // to avoid duplicated data only the first object will scrap JVM metrics
-                var scrapJvmMetrics = instanceCounter.computeIfAbsent(getClass(), (_class) -> new AtomicInteger(0)).getAndIncrement() == 0;
-                scheduled = executor.scheduleAtFixedRate(() -> {
-                    metrics.forEach((key, value) -> {
-                        if (value.metricValue() instanceof Number statValue && (!(statValue instanceof Double) || !Double.isNaN((double) statValue))) {
-                            if (value.metricName().tags().containsKey("topic") && value.metricName().tags().containsKey("partition")) {
-                                process(new PerformanceMetric(key.scope(),
-                                                              key.name(),
-                                                              value.metricName().tags().get("client-id"),
-                                                              statValue,
-                                                              value.metricName().tags().get("topic"),
-                                                              Integer.valueOf(value.metricName().tags().get("partition"))));
-                            } else if (value.metricName().tags().containsKey("topic")) {
-                                process(new PerformanceMetric(key.scope(),
-                                                              key.name(),
-                                                              value.metricName().tags().get("client-id"),
-                                                              statValue,
-                                                              value.metricName().tags().get("topic")));
-                            } else {
-                                process(new PerformanceMetric(key.scope(),
-                                                              key.name(),
-                                                              value.metricName().tags().get("client-id"),
-                                                              statValue));
-                            }
-                        }
-                    });
-                    if (scrapJvmMetrics) {
-                        process(new PerformanceMetric("cpu-used", environmentMetrics.cpuUsed()));
-                        process(new PerformanceMetric("cpu-total", environmentMetrics.cpuTotal()));
-                        process(new PerformanceMetric("memory-total", environmentMetrics.memoryTotal()));
-                        process(new PerformanceMetric("memory-used", environmentMetrics.memoryUsed()));
-                    }
-                }, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
-            }
-        }
+        startJvmMetricsCollector(configs, frequencyInMs);
+        mainCollector = executor.scheduleAtFixedRate(this::collectMainMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -102,15 +113,16 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
 
     @Override
     public void close() {
-        if (Objects.nonNull(scheduled)) {
-            scheduled.cancel(false);
-            if (instanceCounter.computeIfAbsent(getClass(), (_class) -> new AtomicInteger(0)).decrementAndGet() == 0) {
-                instanceCounter.remove(getClass());
-            }
+        if (Objects.nonNull(mainCollector)) {
+            mainCollector.cancel(false);
+        }
+        if (Objects.nonNull(jvmCollector)) {
+            jvmCollector.cancel(false);
         }
     }
 
     private boolean watched(KafkaMetric metric) {
-        return metric.metricName().name().contains("records-lag") && metric.metricName().group().equals("consumer-fetch-manager-metrics");
+        return (metric.metricName().name().contains("records-lag") && metric.metricName().group().equals("consumer-fetch-manager-metrics")) ||
+                (metric.metricName().name().equals("alive-stream-threads") && metric.metricName().group().equals("stream-metrics"));
     }
 }

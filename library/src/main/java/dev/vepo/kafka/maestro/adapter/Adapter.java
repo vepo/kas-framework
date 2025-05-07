@@ -59,7 +59,7 @@ public class Adapter implements MetricListener, Configurable {
     }
 
     private synchronized void kafkaStreamsStateChanged(KafkaStreams.State newState, KafkaStreams.State oldState) {
-       this.context = context.withStreams(newState);
+        this.context = context.withStreams(newState);
     }
 
     @Override
@@ -67,10 +67,19 @@ public class Adapter implements MetricListener, Configurable {
         switch (metric.context()) {
             case PARTITION:
                 metrics.computeIfAbsent(MetricKey.partition(metric.name(), metric.topic(), metric.partition()),
-                                        (_key) -> new MetricValues(this.minHistorySize, this.maxHistorySize))
-                       .add(metric.value(), metric.timestamp());
+                        (_key) -> new MetricValues(this.minHistorySize, this.maxHistorySize))
+                        .add(metric.value(), metric.timestamp());
                 break;
-
+            case CLIENT:
+                metrics.computeIfAbsent(MetricKey.client(metric.name()),
+                        (_key) -> new MetricValues(this.minHistorySize, this.maxHistorySize))
+                        .add(metric.value(), metric.timestamp());
+                break;
+            case JVM:
+                metrics.computeIfAbsent(MetricKey.jvm(metric.name()),
+                        (_key) -> new MetricValues(this.minHistorySize, this.maxHistorySize))
+                        .add(metric.value(), metric.timestamp());
+                break;
             default:
                 break;
         }
@@ -84,11 +93,11 @@ public class Adapter implements MetricListener, Configurable {
                 break;
             case RUNNING:
                 this.context = rules.stream()
-                                    .sequential()
-                                    .reduce(this.context, // Initial value
-                                            (ctx, rule) -> rule.evaluate(ctx), // Accumulator
-                                            (ctx1, ctx2) -> ctx2 // Combiner (not used in sequential streams)
-                                    );
+                        .sequential()
+                        .reduce(this.context, // Initial value
+                                (ctx, rule) -> rule.evaluate(ctx), // Accumulator
+                                (ctx1, ctx2) -> ctx2 // Combiner (not used in sequential streams)
+                        );
             case PENDING_SHUTDOWN:
             case NOT_RUNNING:
             case PENDING_ERROR:

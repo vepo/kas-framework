@@ -18,7 +18,7 @@ public class MetricsRecorder implements MetricListener {
     @Override
     public void feed(PerformanceMetric metric) {
         try {
-            Files.writeString(DATA_PATH.resolve(String.format("metric-%s.txt", metric.name())),
+            Files.writeString(DATA_PATH.resolve(String.format("metric-%s.txt", metric.id())),
                               String.format("%d %s\n", System.currentTimeMillis(), metric.value().toString()),
                               APPEND, CREATE);
         } catch (IOException e) {

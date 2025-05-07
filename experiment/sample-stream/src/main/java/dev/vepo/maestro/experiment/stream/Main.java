@@ -48,8 +48,8 @@ public class Main implements Runnable {
     }
 
     @Option(names = {
-        "-t",
-        "--type" }, required = true)
+            "-t",
+            "--type" }, required = true)
     Type type;
 
     @Option(names = "--app-id", required = true)
@@ -110,30 +110,30 @@ public class Main implements Runnable {
         var builder = new StreamsBuilder();
         // Create state stores
         var positionStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.VEHICLE_INFO_STORE.topicName(),
-                                                                                          Duration.ofDays(1),
-                                                                                          Duration.ofMinutes(5),
-                                                                                          false),
-                                                             Serdes.String(),
-                                                             JsonSerde.of(VehicleSpeed.class));
+                        Duration.ofDays(1),
+                        Duration.ofMinutes(5),
+                        false),
+                Serdes.String(),
+                JsonSerde.of(VehicleSpeed.class));
 
         // Register the stores
         builder.addStateStore(positionStoreBuilder);
 
         // Input stream from vehicles topic
         var vehicleStream = builder.stream(Topics.VEHICLE_MOVIMENT.topicName(),
-                                           Consumed.with(Serdes.String(), JsonSerde.of(VehicleInfo.class)));
+                Consumed.with(Serdes.String(), JsonSerde.of(VehicleInfo.class)));
 
         vehicleStream.process(() -> new VehicleInfoProcessor(), Topics.VEHICLE_INFO_STORE.topicName())
-                     .to(output(), Produced.with(Serdes.String(), JsonSerde.of(VehicleSpeed.class)));
+                .to(output(), Produced.with(Serdes.String(), JsonSerde.of(VehicleSpeed.class)));
         return builder.build();
 
     }
 
     private String output() {
-        return Topics.VEHICLE_STATS.topicName() + switch (this.type) {
-            case VANILLA -> "-vanilla";
-            case MAESTRO -> "-maestro";
-        };
+        return switch (this.type) {
+            case VANILLA -> "vanilla-";
+            case MAESTRO -> "maestro-";
+        } + Topics.VEHICLE_STATS.topicName();
     }
 
     private class VehicleInfoProcessor implements Processor<String, VehicleInfo, String, VehicleSpeed> {
@@ -176,23 +176,23 @@ public class Main implements Runnable {
                     var storedValue = iterator.next();
                     if (Objects.nonNull(storedValue.value)) {
                         store.put(value.value().id(),
-                                  new VehicleSpeed(value.value().id(),
-                                                   Math.max(value.value().speed(), storedValue.value.maxSpeed()),
-                                                   Math.min(value.value().speed(), storedValue.value.minSpeed()),
+                                new VehicleSpeed(value.value().id(),
+                                        Math.max(value.value().speed(), storedValue.value.maxSpeed()),
+                                        Math.min(value.value().speed(), storedValue.value.minSpeed()),
                                                    ((storedValue.value.avgSpeed() * storedValue.value.counter()) + value.value().speed())
-                                                           / (storedValue.value.counter() + 1),
-                                                   storedValue.value.counter() + 1),
-                                  storedValue.key);
+                                                / (storedValue.value.counter() + 1),
+                                        storedValue.value.counter() + 1),
+                                storedValue.key);
                         return;
                     }
                 }
                 store.put(value.value().id(),
-                          new VehicleSpeed(value.value().id(),
-                                           value.value().speed(),
-                                           value.value().speed(),
-                                           value.value().speed(),
-                                           1),
-                          value.value().timestamp());
+                        new VehicleSpeed(value.value().id(),
+                                value.value().speed(),
+                                value.value().speed(),
+                                value.value().speed(),
+                                1),
+                        value.value().timestamp());
 
             }
         }

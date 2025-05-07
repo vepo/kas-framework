@@ -23,6 +23,6 @@ public record PerformanceMetric(String scope, String id, Context context, String
     }
 
     public PerformanceMetric(String scope, String name, String clientId, Number value, String topic, int partition) {
-        this(scope, String.format("%s-%s-%d", name, topic, partition), Context.TOPIC, name, clientId, value, topic, partition, System.currentTimeMillis());
+        this(scope, String.format("%s-%s-%d", name, topic, partition), Context.PARTITION, name, clientId, value, topic, partition, System.currentTimeMillis());
     }
 }

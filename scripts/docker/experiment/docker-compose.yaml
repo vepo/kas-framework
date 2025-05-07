@@ -20,6 +20,13 @@ services:
         reservations:
           cpus: '0.5'
           memory: 1.5gb
+    environment:
+      STATS_FOLDER: /app/stats
+    volumes:
+      - ./runtime:/app
+      - ./stats/vanilla:/app/stats
+    networks:
+      - maestro-network
   stream-maestro:
     image: openjdk:21-jdk
     command: java -Xms1g -Xmx1g -jar /app/sample-stream-jar-with-dependencies.jar --app-id maestro --test-id maestro --type MAESTRO
@@ -35,7 +42,7 @@ services:
       STATS_FOLDER: /app/stats
     volumes:
       - ./runtime:/app
-      - ./stats/default:/app/stats
+      - ./stats/maestro:/app/stats
     networks:
       - maestro-network
 networks:

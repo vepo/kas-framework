@@ -47,6 +47,13 @@ public class MetricValues {
         return this.values.size() >= minSize;
     }
 
+    public double average() {
+        return values.stream()
+                     .mapToDouble(Point::y)
+                     .average()
+                     .orElse(0.0);
+    }
+
     public Regression regression() {
         // Do not cache SimpleRegression
         // For long running the imprecision can grow

@@ -6,7 +6,7 @@ public class ThroughputAnalyzerRule implements AdapterRule {
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(ThroughputAnalyzerRule.class);
 
     @Override
-    public StreamsContext evaluate(StreamsContext context) {
+    public StreamsContext evaluate(StreamsContext context, RequiredChanges changes) {
         var lagHistory = context.lagHistory().toList();
         if (lagHistory.stream().allMatch(MetricValues::hasData)) {
             if (lagHistory.stream().map(MetricValues::regression).anyMatch(regression -> regression.slope() > 0)) {

@@ -1,20 +1,28 @@
 package dev.vepo.kafka.maestro;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KafkaStreams.CloseOptions;
 import org.apache.kafka.streams.KafkaStreams.StateListener;
 import org.apache.kafka.streams.Topology;
+import org.apache.kafka.streams.TopologyDescription.Source;
 
 public class VanillaStreams implements Streams {
 
     private final KafkaStreams innerStreams;
     private Properties props;
+    private final Topology topology;
+    private final AtomicReference<Set<String>> inputTopics;
 
     public VanillaStreams(Topology topology, Properties props) {
+        this.topology = topology;
+        this.inputTopics = new AtomicReference<>();
         this.props = props;
         innerStreams = new KafkaStreams(topology, props);
     }
@@ -52,6 +60,28 @@ public class VanillaStreams implements Streams {
     @Override
     public void restart(Properties props) {
         // nothing
+    }
+
+    @Override
+    public void addNewThreads(int requiredNumberOfThreads) {
+        this.innerStreams.addStreamThread();
+    }
+
+    @Override
+    public Set<String> inputTopics() {
+        return inputTopics.updateAndGet(value -> {
+            if (Objects.nonNull(value)) {
+                return this.topology.describe()
+                        .subtopologies()
+                        .stream()
+                        .flatMap(s -> s.nodes().stream())
+                        .filter(n -> n instanceof Source)
+                        .map(n -> (Source) n)
+                        .flatMap(source -> source.topicSet().stream())
+                        .collect(Collectors.toSet());
+            }
+            return value;
+        });
     }
 
     @Override

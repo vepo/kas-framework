@@ -1,7 +1,6 @@
 package dev.vepo.maestro.experiment.data.generator;
 
 import java.text.DecimalFormat;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;

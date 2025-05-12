@@ -7,19 +7,20 @@ public record PerformanceMetric(String scope, String id, Context context, String
         PARTITION,
         TOPIC,
         CLIENT,
-        JVM
+        JVM,
+        BROKER
     };
 
-    public PerformanceMetric(String name, Number value) {
-        this("jvm", name, Context.JVM, name, "jvm", value, "", -1, System.currentTimeMillis());
+    public PerformanceMetric(Context context, String name, String clientId, Number value) {
+        this(context.name().toLowerCase(), name, context, name, clientId, value, "", -1, System.currentTimeMillis());
     }
 
     public PerformanceMetric(String scope, String name, String clientId, Number value) {
-        this(scope, name, Context.CLIENT, name, clientId, value, "", -1, System.currentTimeMillis());
+        this(scope, String.format("%s-%s", name, clientId), Context.CLIENT, name, clientId, value, "", -1, System.currentTimeMillis());
     }
 
     public PerformanceMetric(String scope, String name, String clientId, Number value, String topic) {
-        this(scope, String.format("%s-%s", name, topic), Context.TOPIC, name, clientId, value, topic, -1, System.currentTimeMillis());
+        this(scope, String.format("%s-%s-%s", name, topic, clientId), Context.TOPIC, name, clientId, value, topic, -1, System.currentTimeMillis());
     }
 
     public PerformanceMetric(String scope, String name, String clientId, Number value, String topic, int partition) {

@@ -86,7 +86,7 @@ public class Main implements Runnable {
             taskExecutor.schedule(() -> {
                 maestroStream.close();
                 countDown.countDown();
-            }, 15, TimeUnit.MINUTES);
+            }, 30, TimeUnit.MINUTES);
             maestroStream.start();
             try {
                 countDown.await();
@@ -140,22 +140,25 @@ public class Main implements Runnable {
 
         private WindowStore<String, VehicleSpeed> store;
         private final Duration duration;
+        private final Duration frequency;
         private ProcessorContext<String, VehicleSpeed> context;
 
         private VehicleInfoProcessor() {
             this.duration = Duration.ofMinutes(5);
+            this.frequency = Duration.ofSeconds(15);
         }
 
         @Override
         public void init(ProcessorContext<String, VehicleSpeed> context) {
             this.context = context;
             store = context.getStateStore(Topics.VEHICLE_INFO_STORE.topicName());
-            context.schedule(Duration.ofSeconds(10), PunctuationType.WALL_CLOCK_TIME, this::flush);
+            context.schedule(frequency, PunctuationType.WALL_CLOCK_TIME, this::flush);
         }
 
         private void flush(long timestamp) {
-            try (var iterator = store.backwardFetchAll(Instant.ofEpochMilli(0), Instant.ofEpochMilli(timestamp))) {
-                while (iterator.hasNext()) {
+            var stopTime = System.nanoTime() + frequency.dividedBy(3).toNanos();
+            try (var iterator = store.fetchAll(Instant.ofEpochMilli(0), Instant.ofEpochMilli(timestamp))) {
+                while (stopTime < System.nanoTime() && iterator.hasNext()) {
                     var value = iterator.next();
                     if (Objects.nonNull(value.value)) {
                         context.forward(new Record<>(value.value.id(), value.value, value.key.window().end()));

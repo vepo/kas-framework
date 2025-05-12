@@ -2,6 +2,7 @@ package dev.vepo.kafka.maestro;
 
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.kafka.streams.KafkaStreams.CloseOptions;
 import org.apache.kafka.streams.KafkaStreams.StateListener;
@@ -23,4 +24,8 @@ public interface Streams extends AutoCloseable {
     void restart(Properties props);
 
     Map<String, Object> originalConfigs();
+
+    Set<String> inputTopics();
+
+    void addNewThreads(int requiredNumberOfThreads);
 }

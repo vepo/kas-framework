@@ -1,4 +1,4 @@
-package dev.vepo.kafka.maestro.adapter;
+package dev.vepo.kafka.maestro.adapter.context;
 
 public enum ThroughputState {
     INITIALIZING,

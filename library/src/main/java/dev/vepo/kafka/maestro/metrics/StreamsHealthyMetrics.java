@@ -4,15 +4,19 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import dev.vepo.kafka.maestro.MaestroConfigs;
 import dev.vepo.kafka.maestro.adapter.Adapter;
 
-public class StreamsHealtyMetrics extends AbstractMaestroMetrics {
+public class StreamsHealthyMetrics extends AbstractMaestroMetrics {
+    private static final Logger logger = LoggerFactory.getLogger(StreamsHealthyMetrics.class);
     private static final Object LOCK = new Object();
 
     private Adapter adapter;
     
-    public StreamsHealtyMetrics() {
+    public StreamsHealthyMetrics() {
         super(LOCK);
     }
 

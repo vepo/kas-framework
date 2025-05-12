@@ -1,39 +1,42 @@
 package dev.vepo.kafka.maestro.metrics;
 
-import oshi.SystemInfo;
-import oshi.hardware.CentralProcessor;
-import oshi.hardware.GlobalMemory;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import com.sun.management.OperatingSystemMXBean;
+import java.time.Duration;
 
 public class EnvironmentMetrics {
 
-    private final CentralProcessor processor;
-    private long[] prevTicks;
-    private final GlobalMemory memory;
+    private final static MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
+    private final static OperatingSystemMXBean osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+    private final static Object _LOCK = new Object();
+    private final static Duration cpuUsedCache = Duration.ofSeconds(10);
+    private static long lastCpuUsed = 0;
+    private static double cpuUsedCached = 0.0;
 
     public EnvironmentMetrics() {
-        SystemInfo systemInfo = new SystemInfo();
-        processor = systemInfo.getHardware().getProcessor();
-        prevTicks = processor.getSystemCpuLoadTicks();
-        memory = systemInfo.getHardware().getMemory();
     }
 
     public double cpuUsed() {
-        try {
-            return processor.getSystemCpuLoadBetweenTicks(prevTicks) * processor.getPhysicalProcessorCount();
-        } finally {
-            prevTicks = processor.getSystemCpuLoadTicks();
+        // If no cache is used, a lot of 0 values are returned
+        synchronized (_LOCK) {
+            if (System.nanoTime() - lastCpuUsed > cpuUsedCache.toNanos()) {
+                cpuUsedCached = osBean.getProcessCpuLoad() * osBean.getAvailableProcessors();
+                lastCpuUsed = System.nanoTime();
+            }
+            return cpuUsedCached;
         }
     }
 
     public int cpuTotal() {
-        return processor.getPhysicalProcessorCount();
+        return osBean.getAvailableProcessors();
     }
 
     public long memoryTotal() {
-        return memory.getTotal();
+        return memoryBean.getHeapMemoryUsage().getMax();
     }
 
     public long memoryUsed() {
-        return memory.getTotal() - memory.getAvailable();
+        return memoryBean.getHeapMemoryUsage().getUsed();
     }
 }

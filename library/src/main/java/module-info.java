@@ -4,7 +4,7 @@ module maestro.kafkaStream {
     requires transitive commons.math3;
     requires org.slf4j;
     requires java.management;
-    requires com.github.oshi;
+    requires jdk.management;
 
     exports dev.vepo.kafka.maestro.metrics;
     exports dev.vepo.kafka.maestro;

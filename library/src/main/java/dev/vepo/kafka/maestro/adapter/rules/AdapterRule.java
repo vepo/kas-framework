@@ -1,35 +1,43 @@
-package dev.vepo.kafka.maestro.adapter;
+package dev.vepo.kafka.maestro.adapter.rules;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import dev.vepo.kafka.maestro.adapter.context.StreamsContext;
+
 public interface AdapterRule {
 
     public class RequiredChanges {
-        private boolean increaseThread;
+        private int numThreads;;
         private Map<String, Object> properties;
-        private boolean change;
 
         public RequiredChanges() {
-            this.change = false;
-            this.increaseThread = false;
+            this.numThreads = 0;
             this.properties = new HashMap<>();
         }
 
         public boolean changeRequired() {
-            return change;
+            return numThreads > 0 || this.properties.size() > 0;
         }
 
         public boolean shouldIncreaseThreads() {
-            return increaseThread;
+            return numThreads > 0;
         }
 
-        public void increaseThread() {
-            this.increaseThread = true;
+        public void increaseThread(int numThreads) {
+            this.numThreads = numThreads;
+        }
+
+        public int numThreads() {
+            return numThreads;
         }
 
         public boolean useNewConfigs() {
             return !this.properties.isEmpty();
+        }
+
+        public void useValue(String key, Object value) {
+            this.properties.put(key, value);
         }
 
         public Map<String, Object> newConfigs() {
@@ -38,8 +46,7 @@ public interface AdapterRule {
 
         @Override
         public String toString() {
-            return String.format("RequiredChanges[change=%b, increaseThread=%b, properties=%s]", change, increaseThread,
-                    properties);
+            return String.format("RequiredChanges[numThreads=%d, properties=%s]", numThreads, properties);
         }
     }
 

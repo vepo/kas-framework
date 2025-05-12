@@ -1,5 +1,6 @@
 package dev.vepo.kafka.maestro;
 
+import static java.util.Map.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,7 +18,6 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -30,16 +30,19 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Produced;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
-import static java.util.Map.entry;
 
 @Testcontainers
-public class MaestroStreamsTest {
+class MaestroStreamsTest {
+    private static final Logger logger = LoggerFactory.getLogger(MaestroStreamsTest.class);
+
     @Container
-    public static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("apache/kafka:4.0.0"));
+    private static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("apache/kafka:4.0.0"));
 
     private static void withTopic(String topicName, int partitions, short replicationFactor) throws InterruptedException, ExecutionException, TimeoutException {
         try (var admin = KafkaAdminClient.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers()))) {
@@ -142,7 +145,7 @@ public class MaestroStreamsTest {
                                                                      ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                                                                      ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class))) {
             var metadata = producer.send(new ProducerRecord<String, String>(topic, key, value)).get();
-            System.out.println("Message sent! offset:" + metadata.offset() + " partition:" + metadata.partition());
+            logger.info("Message sent! metadata: {}", metadata);
         }
     }
 }

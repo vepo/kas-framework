@@ -1,7 +1,7 @@
 #!/bin/bash
 
-docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vehicle-moviment                                      --partitions 16 --replication-factor 2
-docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vanilla-vehicle-info-store-changelog                  --partitions 16 --replication-factor 2
-docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vanilla-vehicle-stats                                 --partitions 16 --replication-factor 2
-docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic maestro-vehicle-info-store-changelog                  --partitions 16 --replication-factor 2
-docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic maestro-vehicle-stats                                 --partitions 16 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vehicle-moviment                                      --partitions 32 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vanilla-vehicle-info-store-changelog                  --partitions 32 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic vanilla-vehicle-stats                                 --partitions 32 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic maestro-vehicle-info-store-changelog                  --partitions 32 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic maestro-vehicle-stats                                 --partitions 32 --replication-factor 2

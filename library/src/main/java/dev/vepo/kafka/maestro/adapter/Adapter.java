@@ -160,6 +160,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
                                         );
                     logger.info("Changes required {}!", changes);
                     if (changes.changeRequired()) {
+                        // restart need to run async to do not block itself
                         this.context = this.context.reset();
                         if (changes.useNewConfigs()) {
                             var originalConfigs = context.instance().originalConfigs();
@@ -170,7 +171,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
                             var props = new Properties();
                             props.putAll(originalConfigs);
                             context.instance().restart(props);
-                        } else if (changes.shouldIncreaseThreads()) {                       
+                        } else if (changes.shouldIncreaseThreads()) {
                             context.instance().addNewThreads(changes.numThreads());
                         }
                     }

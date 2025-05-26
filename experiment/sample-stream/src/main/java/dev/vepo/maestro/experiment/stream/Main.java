@@ -74,7 +74,8 @@ public class Main implements Runnable {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, appId);
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, StringSerde.class);
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
-        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
+        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 6);
+        props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
         props.put(StreamsConfig.METRIC_REPORTER_CLASSES_CONFIG, PerformanceMetricsCollector.class.getName());
         try (var maestroStream = create(buildTopology(), props);
                 var taskExecutor = Executors.newSingleThreadScheduledExecutor()) {
@@ -110,7 +111,7 @@ public class Main implements Runnable {
         var builder = new StreamsBuilder();
         // Create state stores
         var positionStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.VEHICLE_INFO_STORE.topicName(),
-                        Duration.ofDays(1),
+                        Duration.ofMinutes(15),
                         Duration.ofMinutes(5),
                         false),
                 Serdes.String(),
@@ -140,35 +141,35 @@ public class Main implements Runnable {
 
         private WindowStore<String, VehicleSpeed> store;
         private final Duration duration;
-        private final Duration frequency;
+        // private final Duration frequency;
         private ProcessorContext<String, VehicleSpeed> context;
 
         private VehicleInfoProcessor() {
             this.duration = Duration.ofMinutes(5);
-            this.frequency = Duration.ofSeconds(15);
+            // this.frequency = Duration.ofSeconds(5);
         }
 
         @Override
         public void init(ProcessorContext<String, VehicleSpeed> context) {
             this.context = context;
             store = context.getStateStore(Topics.VEHICLE_INFO_STORE.topicName());
-            context.schedule(frequency, PunctuationType.WALL_CLOCK_TIME, this::flush);
+            // context.schedule(frequency, PunctuationType.WALL_CLOCK_TIME, this::flush);
         }
 
-        private void flush(long timestamp) {
-            var stopTime = System.nanoTime() + frequency.dividedBy(3).toNanos();
-            try (var iterator = store.fetchAll(Instant.ofEpochMilli(0), Instant.ofEpochMilli(timestamp))) {
-                while (stopTime < System.nanoTime() && iterator.hasNext()) {
-                    var value = iterator.next();
-                    if (Objects.nonNull(value.value)) {
-                        context.forward(new Record<>(value.value.id(), value.value, value.key.window().end()));
-                        store.put(value.value.id(), null, value.key.window().start());
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
+        // private void flush(long timestamp) {
+        //     var stopTime = System.nanoTime() + frequency.dividedBy(3).toNanos();
+        //     try (var iterator = store.fetchAll(Instant.ofEpochMilli(0), Instant.ofEpochMilli(timestamp))) {
+        //         while (stopTime < System.nanoTime() && iterator.hasNext()) {
+        //             var value = iterator.next();
+        //             if (Objects.nonNull(value.value)) {
+        //                 context.forward(new Record<>(value.value.id(), value.value, value.key.window().end()));
+        //                 store.put(value.value.id(), null, value.key.window().start());
+        //             } else {
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
 
         @Override
         public void process(Record<String, VehicleInfo> value) {
@@ -178,14 +179,14 @@ public class Main implements Runnable {
                 if (iterator.hasNext()) {
                     var storedValue = iterator.next();
                     if (Objects.nonNull(storedValue.value)) {
-                        store.put(value.value().id(),
-                                new VehicleSpeed(value.value().id(),
-                                        Math.max(value.value().speed(), storedValue.value.maxSpeed()),
-                                        Math.min(value.value().speed(), storedValue.value.minSpeed()),
-                                                   ((storedValue.value.avgSpeed() * storedValue.value.counter()) + value.value().speed())
-                                                / (storedValue.value.counter() + 1),
-                                        storedValue.value.counter() + 1),
-                                storedValue.key);
+                        var newValue = new VehicleSpeed(value.value().id(),
+                                Math.max(value.value().speed(), storedValue.value.maxSpeed()),
+                                Math.min(value.value().speed(), storedValue.value.minSpeed()),
+                                           ((storedValue.value.avgSpeed() * storedValue.value.counter()) + value.value().speed())
+                                        / (storedValue.value.counter() + 1),
+                                storedValue.value.counter() + 1);
+                        store.put(value.value().id(), newValue, storedValue.key);
+                        context.forward(new Record<>(value.value().id(), storedValue.value, value.timestamp()));
                         return;
                     }
                 }

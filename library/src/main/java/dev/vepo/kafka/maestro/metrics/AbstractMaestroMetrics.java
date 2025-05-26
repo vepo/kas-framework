@@ -152,6 +152,18 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
             case MetricName name when name.name().equals("assigned-partitions") &&
                     name.group().equals("consumer-coordinator-metrics") -> true;
 
+            case MetricName name when name.name().equals("compression-rate-avg") &&
+                    name.group().equals("producer-metrics") -> true;
+
+            case MetricName name when name.name().equals("record-send-rate") &&
+                    name.group().equals("producer-metrics") -> true;
+
+            case MetricName name when name.name().equals("record-size-avg") &&
+                    name.group().equals("producer-metrics") -> true;
+
+            case MetricName name when name.name().equals("batch-size-avg") &&
+                    name.group().equals("producer-metrics") -> true;
+
             default -> false;
         };
     }

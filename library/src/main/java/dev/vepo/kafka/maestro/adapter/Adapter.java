@@ -10,6 +10,7 @@ import static dev.vepo.kafka.maestro.adapter.stats.StatsKey.client;
 import static dev.vepo.kafka.maestro.adapter.stats.StatsKey.jvm;
 import static dev.vepo.kafka.maestro.adapter.stats.StatsKey.partition;
 import static dev.vepo.kafka.maestro.adapter.stats.StatsKey.topic;
+import static dev.vepo.kafka.maestro.metrics.MetricsRecorder.recordEvent;
 import static org.apache.kafka.streams.StreamsConfig.NUM_STREAM_THREADS_CONFIG;
 
 import java.util.Collections;
@@ -35,6 +36,7 @@ import dev.vepo.kafka.maestro.adapter.context.StreamsContext;
 import dev.vepo.kafka.maestro.adapter.context.ThroughputState;
 import dev.vepo.kafka.maestro.adapter.rules.AdapterRule;
 import dev.vepo.kafka.maestro.adapter.rules.AdjustConsumerFetchSizeRule;
+import dev.vepo.kafka.maestro.adapter.rules.BatchProducerRule;
 import dev.vepo.kafka.maestro.adapter.rules.AdapterRule.RequiredChanges;
 import dev.vepo.kafka.maestro.adapter.rules.ThreadAllocationRule;
 import dev.vepo.kafka.maestro.adapter.rules.ThroughputAnalyzerRule;
@@ -44,6 +46,7 @@ import dev.vepo.kafka.maestro.adapter.stats.StatsValues;
 import dev.vepo.kafka.maestro.metrics.BrokerMetricsCollector;
 import dev.vepo.kafka.maestro.metrics.MetricListener;
 import dev.vepo.kafka.maestro.metrics.PerformanceMetric;
+import dev.vepo.kafka.maestro.metrics.MetricsRecorder.Event;
 
 public class Adapter implements MetricListener, Configurable, StateListener {
     private static final Logger logger = LoggerFactory.getLogger(Adapter.class);
@@ -65,7 +68,10 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         this.rules = List.of(new ThroughputAnalyzerRule(), 
                              new ThreadAllocationRule(),
                              new AdjustConsumerFetchSizeRule(),
-                             new UseCompressionOnProducerRule());
+                             new UseCompressionOnProducerRule(),
+                             new BatchProducerRule());
+        // this.rules = List.of(new ThroughputAnalyzerRule(),
+        //                      new AdjustConsumerFetchSizeRule());
         this.clusterMetricsCollector = null;
     }
 
@@ -142,6 +148,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
                     // nothing
                     break;
                 case RUNNING:
+                    recordEvent(Event.CHECK);
                     var changes = new RequiredChanges();
                     logger.info("""
                                 Evaluating adapting rules...
@@ -171,8 +178,10 @@ public class Adapter implements MetricListener, Configurable, StateListener {
                             var props = new Properties();
                             props.putAll(originalConfigs);
                             context.instance().restart(props);
+                            recordEvent(Event.RESTART, props);
                         } else if (changes.shouldIncreaseThreads()) {
                             context.instance().addNewThreads(changes.numThreads());
+                            recordEvent(Event.APPLY, Map.of(NUM_STREAM_THREADS_CONFIG, changes.numThreads()));
                         }
                     }
                 case PENDING_SHUTDOWN:

@@ -72,7 +72,7 @@ class MaestroStreamsTest {
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 5);
 
-        try (var streams = new MaestroStreams(builder.build(), props)) {
+        try (var streams = new MaestroStreams(builder::build, props)) {
             streams.cleanUp();
             streams.start();
             withMessage("input", "poem-1", "o rato roeu a roupa do rei de roma");

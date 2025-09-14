@@ -1,0 +1,18 @@
+#!/bin/bash
+
+mkdir -p dataset 
+
+FILE_NAME="yellow_tripdata_2025-06"
+
+if [ ! -f "./dataset/${FILE_NAME}.parquet" ]; then
+    echo "Downloading ${FILE_NAME}.parquet ..."
+    wget https://d37ci6vzurychx.cloudfront.net/trip-data/${FILE_NAME}.parquet -O ./dataset/${FILE_NAME}.parquet
+else 
+    echo "File already exists: ${FILE_NAME}.parquet"
+fi
+if [ ! -f "./dataset/${FILE_NAME}.json" ]; then
+    echo "Converting ${FILE_NAME}.parquet to ${FILE_NAME}.json ..."
+    parquet-tools cat --format json ./dataset/${FILE_NAME}.parquet  > ./dataset/${FILE_NAME}.json
+else
+    echo "File already exists: ${FILE_NAME}.json"
+fi

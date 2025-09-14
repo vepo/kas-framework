@@ -64,9 +64,7 @@ public record StreamsContext(KafkaStreams.State streams, ThroughputState through
                       .stream()
                       .filter(e -> e.getKey() instanceof JvmStatsKey psk && psk.name().equals("cpu-used"))
                       .map(Entry::getValue)
-                      .peek(value -> System.out.println("CPU Usage: " + value.all()))
                       .mapToDouble(StatsValues::average)
-                      .peek(value -> System.out.println("CPU Usage: " + value))
                       .average()
                       .orElse(0.0);
     }
@@ -104,11 +102,44 @@ public record StreamsContext(KafkaStreams.State streams, ThroughputState through
     public int assignedPartitions() {
         return (int) stats.entrySet()
                     .stream()
-                    .filter(e -> e.getKey() instanceof ClientStatsKey psk && psk.name().equals("assigned-partitions"))
+                    .filter(e -> e.getKey() instanceof ClientStatsKey csk && csk.name().equals("assigned-partitions"))
                     .map(Entry::getValue)
                     .mapToInt(stats -> stats.last().intValue())
                     .average()
                     .orElse(1.0);
+    }
+
+
+    public double averageWaitingThreads() {
+        return stats.entrySet()
+                    .stream()
+                    .filter(e -> e.getKey() instanceof ClientStatsKey csk && csk.name().equals("waiting-threads"))
+                    .map(Entry::getValue)
+                    .mapToDouble(stats -> stats.average().doubleValue())
+                    .sum();
+    }
+
+    private double averageClientMetric(String key, double defaultValue) {
+        return (double) stats.entrySet()
+                             .stream()
+                             .filter(e -> e.getKey() instanceof ClientStatsKey csk && csk.name().equals(key))
+                             .map(Entry::getValue)
+                             .mapToDouble(stats -> stats.average().doubleValue())
+                             .average()
+                             .orElse(defaultValue);
+
+    }
+
+    public double averageBufferAvailable() {
+        return averageClientMetric("buffer-available-bytes", 0.0);
+    }
+
+    public double averageRecordSendRate() {
+        return averageClientMetric("record-send-rate", 0.0);
+    }
+
+    public double averageRecordSize() {
+        return averageClientMetric("record-size-avg", 0.0);
     }
 
     public int totalPartitions() {
@@ -163,8 +194,6 @@ public record StreamsContext(KafkaStreams.State streams, ThroughputState through
     public StreamsContext withInstance(Streams instance) {
         return new StreamsContext(streams, throughput, resources, stats, instance);
     }
-
-
 
     public StreamsContext reset() {
         clearClientMetrics();

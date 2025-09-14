@@ -2,4 +2,4 @@
 
 (cd scripts/docker/kafka &&  docker-compose up -d)
 
-sudo bash -c 'echo "127.0.0.1 kafka-0 kafka-1 kafka-2" >> /etc/hosts'
+# sudo bash -c 'echo "127.0.0.1 kafka-0 kafka-1 kafka-2" >> /etc/hosts'

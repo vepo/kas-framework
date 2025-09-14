@@ -1,14 +1,11 @@
 package dev.vepo.maestro.experiment.data.generator;
 
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.File;
 import java.util.Properties;
-import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -20,84 +17,11 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 public class DataGenerator {
-    private static class Vehicle {
-        private String id;
-        private double latitude;
-        private double longitude;
-        private double speed; // in km/h
-        private double bearing; // in degrees (0-360)
-        private boolean accelerating;
-
-        public Vehicle(String id, double lat, double lon) {
-            this.id = id;
-            this.latitude = lat;
-            this.longitude = lon;
-            this.speed = ThreadLocalRandom.current().nextDouble(30, 80);
-            this.bearing = ThreadLocalRandom.current().nextDouble(0, 360);
-            this.accelerating = ThreadLocalRandom.current().nextBoolean();
-        }
-
-        public void updatePosition() {
-            // Randomly change acceleration state (10% chance)
-            if (ThreadLocalRandom.current().nextDouble() < 0.1) {
-                accelerating = !accelerating;
-            }
-
-            // Adjust speed based on acceleration state
-            if (accelerating) {
-                speed = Math.min(speed + ThreadLocalRandom.current().nextDouble(0.1, 0.5), 120);
-            } else {
-                speed = Math.max(speed - ThreadLocalRandom.current().nextDouble(0.1, 0.5), 5);
-            }
-
-            // Randomly adjust bearing slightly (5% chance of significant turn)
-            if (ThreadLocalRandom.current().nextDouble() < 0.05) {
-                bearing += ThreadLocalRandom.current().nextDouble(-45, 45);
-            } else {
-                bearing += ThreadLocalRandom.current().nextDouble(-5, 5);
-            }
-
-            // Normalize bearing
-            bearing = (bearing + 360) % 360;
-
-            // Calculate new position (approximate)
-            double distance = speed * 1000 / 3600; // km/h to m/s, assuming 1s interval
-            double bearingRad = Math.toRadians(bearing);
-
-            // Earth's radius in meters
-            double R = 6371000;
-
-            // Convert to radians
-            double latRad = Math.toRadians(latitude);
-            double lonRad = Math.toRadians(longitude);
-
-            // Calculate new position
-            double newLatRad = Math.asin(Math.sin(latRad) * Math.cos(distance / R) +
-                    Math.cos(latRad) * Math.sin(distance / R) * Math.cos(bearingRad));
-            double newLonRad = lonRad + Math.atan2(Math.sin(bearingRad) * Math.sin(distance / R) * Math.cos(latRad),
-                                                   Math.cos(distance / R) - Math.sin(latRad) * Math.sin(newLatRad));
-
-            // Convert back to degrees
-            latitude = Math.toDegrees(newLatRad);
-            longitude = Math.toDegrees(newLonRad);
-        }
-
-        public String toJSON() {
-            return String.format("""
-                                 {"id":"%s","latitude":"%s","longitude":"%s","speed":%.2f,"bearing":%.2f,"accelerating":%b,"timestamp":%d}""",
-                                 id, df.format(latitude), df.format(longitude),
-                                 speed, bearing, accelerating, System.currentTimeMillis());
-        }
-    }
-
-    private static final String TOPIC = "vehicle-moviment";
+    private static final String TOPIC = "nyc-taxi-trips";
     private static final String BOOTSTRAP_SERVERS = "kafka-0:9092,kafka-1:9094,kafka-2:9096";
     private static final int THREADS = Runtime.getRuntime().availableProcessors() * 2;
     private static final int TARGET_RATE_PER_THREAD = 90000 / THREADS;
-    private static final int NUM_VEHICLES = 1000;
     private static final int BATCH_SIZE = 25;
-
-    private static final DecimalFormat df = new DecimalFormat("0.000000");
 
     public static void main(String[] args) throws InterruptedException, ExecutionException {
         var generator = new DataGenerator(THREADS);
@@ -153,26 +77,11 @@ public class DataGenerator {
         props.put(ProducerConfig.ACKS_CONFIG, "1");
         props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
+        var dataSupplier = new DataSupplier(new File("/dataset/data.json"));
 
         try (var producer = new KafkaProducer<String, String>(props)) {
-
-            // Initialize vehicles
-            List<Vehicle> vehicles = new ArrayList<>();
-            Random rand = new Random();
-
-            // Start all vehicles in Berlin area
-            double berlinLat = 52.5200;
-            double berlinLon = 13.4050;
-
-            for (int i = 0; i < NUM_VEHICLES; i++) {
-                double lat = berlinLat + (rand.nextDouble() - 0.5) * 0.1;
-                double lon = berlinLon + (rand.nextDouble() - 0.5) * 0.1;
-                vehicles.add(new Vehicle("V" + (100_000 + i), lat, lon));
-            }
-
             // Rate control
-            System.out.printf("Starting producer thread [%d]: %d vehicles, %d msg/sec%n",
-                              thread, NUM_VEHICLES, TARGET_RATE_PER_THREAD);
+            System.out.printf("Starting producer thread [%d]: %d msg/sec%n", thread, TARGET_RATE_PER_THREAD);
 
             long messagesInBatch = 0;
             long totalMessagesSent = 0;
@@ -181,15 +90,9 @@ public class DataGenerator {
             // Main loop
             long loopStart = System.nanoTime();
             while (running.get()) {
-
-                // Select random vehicle
-                var vehicle = vehicles.get(rand.nextInt(vehicles.size()));
-
-                // Update its position
-                vehicle.updatePosition();
-
+                var data = dataSupplier.next();
                 // Send message
-                var record = new ProducerRecord<String, String>(TOPIC, vehicle.id, vehicle.toJSON());
+                var record = new ProducerRecord<String, String>(TOPIC, null, data.dropTimestamp(), UUID.randomUUID().toString(), data.toJson());
 
                 producer.send(record);
                 messagesInBatch++;

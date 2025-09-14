@@ -1,7 +1,18 @@
-target
-pom.xml.versionsBackup
+## VS Code files
 .vscode
-metrics.txt
+
+## Maven Files
+pom.xml.versionsBackup
 effective-pom.xml
+target
+
+## Intellij Files
+.idea
+
+## Jupyter Notebook files
+.ipynb_checkpoints
+
+## Application files
+metrics.txt
 stats.csv
 *.log

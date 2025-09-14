@@ -9,7 +9,7 @@
 
     <logger name="org.apache" level="ERROR" />
 
-    <root level="${LOG_LEVEL:-INFO}">
+    <root level="${LOG_LEVEL:-WARN}">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>

@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.streams.KafkaStreams;
@@ -17,13 +18,15 @@ public class VanillaStreams implements Streams {
 
     private final KafkaStreams innerStreams;
     private Properties props;
-    private final Topology topology;
+    private final Supplier<Topology> topologyProvider;
+    private Topology topology = null;
     private final AtomicReference<Set<String>> inputTopics;
 
-    public VanillaStreams(Topology topology, Properties props) {
-        this.topology = topology;
+    public VanillaStreams(Supplier<Topology> topologyProvider, Properties props) {
+        this.topologyProvider = topologyProvider;
         this.inputTopics = new AtomicReference<>();
         this.props = props;
+        this.topology = topologyProvider.get();
         innerStreams = new KafkaStreams(topology, props);
     }
 

@@ -52,6 +52,7 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
         }
         return false;
     }
+
     private void collectJvmMetrics() {
         process(new PerformanceMetric(Context.JVM, "cpu-used", "jvm", environmentMetrics.cpuUsed()));
         process(new PerformanceMetric(Context.JVM, "cpu-total", "jvm", environmentMetrics.cpuTotal()));
@@ -61,25 +62,27 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
 
     private void collectMainMetrics() {
         metrics.forEach((key, value) -> {
-            if (value.metricValue() instanceof Number statValue && (!(statValue instanceof Double) || !Double.isNaN((double) statValue))) {
-                if (value.metricName().tags().containsKey("topic") && value.metricName().tags().containsKey("partition")) {
+            if (value.metricValue() instanceof Number statValue
+                    && (!(statValue instanceof Double) || !Double.isNaN((double) statValue))) {
+                if (value.metricName().tags().containsKey("topic")
+                        && value.metricName().tags().containsKey("partition")) {
                     process(new PerformanceMetric(key.scope(),
-                                                  key.name(),
-                                                  value.metricName().tags().get("client-id"),
-                                                  statValue,
-                                                  value.metricName().tags().get("topic"),
-                                                  Integer.valueOf(value.metricName().tags().get("partition"))));
+                            key.name(),
+                            value.metricName().tags().get("client-id"),
+                            statValue,
+                            value.metricName().tags().get("topic"),
+                            Integer.valueOf(value.metricName().tags().get("partition"))));
                 } else if (value.metricName().tags().containsKey("topic")) {
                     process(new PerformanceMetric(key.scope(),
-                                                  key.name(),
-                                                  value.metricName().tags().get("client-id"),
-                                                  statValue,
-                                                  value.metricName().tags().get("topic")));
+                            key.name(),
+                            value.metricName().tags().get("client-id"),
+                            statValue,
+                            value.metricName().tags().get("topic")));
                 } else {
                     process(new PerformanceMetric(key.scope(),
-                                                  key.name(),
-                                                  value.metricName().tags().get("client-id"),
-                                                  statValue));
+                            key.name(),
+                            value.metricName().tags().get("client-id"),
+                            statValue));
                 }
             }
         });
@@ -89,12 +92,14 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
     @Override
     public void configure(Map<String, ?> configs) {
         var mConfigs = new MaestroConfigs(configs);
-        var frequencyInMs = mConfigs.getLong(MaestroConfigs.MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG);        
-        mainCollector = executor.scheduleAtFixedRate(this::collectMainMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
+        var frequencyInMs = mConfigs.getLong(MaestroConfigs.MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG);
+        mainCollector = executor.scheduleAtFixedRate(this::collectMainMetrics, frequencyInMs, frequencyInMs,
+                TimeUnit.MILLISECONDS);
         if (isMainThread(configs)) {
             logger.info("Configuring main thread metrics collector: configs: {}", configs);
             environmentMetrics = new EnvironmentMetrics();
-            jvmCollector = executor.scheduleAtFixedRate(this::collectJvmMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
+            jvmCollector = executor.scheduleAtFixedRate(this::collectJvmMetrics, frequencyInMs, frequencyInMs,
+                    TimeUnit.MILLISECONDS);
         }
     }
 
@@ -135,34 +140,50 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
         }
     }
 
+    private boolean producerMetricsWatched(String metricName) {
+        return switch (metricName) {
+            case "batch-size-avg" -> true;
+            case "buffer-available-bytes" -> true;
+            case "compression-rate-avg" -> true;
+            case "record-send-rate" -> true;
+            case "record-size-avg" -> true;
+            case "waiting-threads" -> true;
+            default -> false;
+        };
+    }
+
     private boolean watched(MetricName metricName) {
         return switch (metricName) {
+
+            // Consumer metrics
             case MetricName name when name.name().equals("records-lag") &&
-                    name.group().equals("consumer-fetch-manager-metrics") -> true;
+                    name.group().equals("consumer-fetch-manager-metrics") ->
+                true;
 
             case MetricName name when name.name().equals("records-consumed-rate") &&
                     name.group().equals("consumer-fetch-manager-metrics") &&
-                    name.tags().containsKey("client-id") && 
-                    !name.tags().get("client-id").endsWith("-restore-consumer") &&
-                    name.tags().containsKey("topic") -> true;
-
-            case MetricName name when name.name().equals("alive-stream-threads") &&
-                    name.group().equals("stream-metrics") -> true;
+                    name.tags().containsKey("client-id") &&
+                    // !name.tags().get("client-id").endsWith("-restore-consumer") &&
+                    name.tags().containsKey("topic") ->
+                true;
 
             case MetricName name when name.name().equals("assigned-partitions") &&
-                    name.group().equals("consumer-coordinator-metrics") -> true;
+                    name.group().equals("consumer-coordinator-metrics") ->
+                true;
 
-            case MetricName name when name.name().equals("compression-rate-avg") &&
-                    name.group().equals("producer-metrics") -> true;
+            case MetricName name when name.name().equals("fetch-size-avg") &&
+                    name.group().equals("consumer-fetch-manager-metrics") &&
+                    name.tags().containsKey("topic") ->
+                true;
 
-            case MetricName name when name.name().equals("record-send-rate") &&
-                    name.group().equals("producer-metrics") -> true;
-
-            case MetricName name when name.name().equals("record-size-avg") &&
-                    name.group().equals("producer-metrics") -> true;
-
-            case MetricName name when name.name().equals("batch-size-avg") &&
-                    name.group().equals("producer-metrics") -> true;
+            // Producer metrics
+            case MetricName name when producerMetricsWatched(name.name()) &&
+                    name.group().equals("producer-metrics") ->
+                true;
+            // Stream metrics
+            case MetricName name when name.name().equals("alive-stream-threads")
+                    && name.group().equals("stream-metrics") ->
+                true;
 
             default -> false;
         };

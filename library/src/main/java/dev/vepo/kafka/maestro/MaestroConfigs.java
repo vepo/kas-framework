@@ -34,11 +34,11 @@ public class MaestroConfigs extends AbstractConfig {
     public static final String NUM_STREAM_THREADS_CONFIG = StreamsConfig.NUM_STREAM_THREADS_CONFIG;
     public static final String NUM_STREAM_THREADS_DOC = "The number of threads to execute stream processing.";
 
-    public static final Duration DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY = Duration.ofSeconds(30);
-    public static final Duration DEFAULT_METRICS_COLLECTION_FREQUENCY = Duration.ofSeconds(5);
+    public static final Duration DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY = Duration.ofMinutes(5);
+    public static final Duration DEFAULT_METRICS_COLLECTION_FREQUENCY = Duration.ofSeconds(1);
     public static final int DEFAULT_NUM_STREAM_THREADS = 2;
     public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MAX = (int) Duration.ofMinutes(60).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY);
-    public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN = (int) Duration.ofMinutes(5).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY);
+    public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN = (int) Duration.ofMinutes(10).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY);
 
     private static final ConfigDef CONFIG = new ConfigDef().define(MAESTRO_ADAPTER_CLASS_CONFIG,
                                                                    Type.CLASS,

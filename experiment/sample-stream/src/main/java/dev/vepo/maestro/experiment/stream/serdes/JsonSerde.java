@@ -7,13 +7,17 @@ import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 public class JsonSerde<T> implements Serde<T> {
+    private static final Logger logger = LoggerFactory.getLogger(JsonSerde.class);
 
     private class ObjectSerializer implements Serializer<T> {
 
@@ -22,6 +26,7 @@ public class JsonSerde<T> implements Serde<T> {
             try {
                 return writer.writeValueAsBytes(data);
             } catch (JsonProcessingException e) {
+                logger.error("Error serializing data: {}", data);
                 throw new KafkaException("Cannot serialize data!", e);
             }
         }
@@ -35,6 +40,7 @@ public class JsonSerde<T> implements Serde<T> {
             try {
                 return reader.readValue(new ByteArrayInputStream(data));
             } catch (IOException e) {
+                logger.error("Error deserializing data: {}", new String(data));
                 throw new KafkaException("Cannot deserialize data!", e);
             }
         }
@@ -51,7 +57,7 @@ public class JsonSerde<T> implements Serde<T> {
     private final JsonSerde<T>.ObjectDeserializer deserializer;
 
     public JsonSerde(Class<T> serderClass) {
-        var mapper = new ObjectMapper();
+        var mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.reader = mapper.readerFor(serderClass);
         this.writer = mapper.writerFor(serderClass);
         this.serializer = new ObjectSerializer();

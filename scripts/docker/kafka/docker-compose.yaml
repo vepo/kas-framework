@@ -5,6 +5,14 @@ services:
     ports:
      - 9092:9092
      - 9093:9093
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2gb
+        reservations:
+          cpus: '0.5'
+          memory: 2gb
     environment:
       KAFKA_CLUSTER_ID: N0UOwvnVR7ORiwq0M4do9w
       KAFKA_BROKER_ID: 1
@@ -25,6 +33,14 @@ services:
     ports:
      - 9094:9094
      - 9095:9095
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2gb
+        reservations:
+          cpus: '0.5'
+          memory: 2gb
     environment:
       KAFKA_CLUSTER_ID: N0UOwvnVR7ORiwq0M4do9w
       KAFKA_BROKER_ID: 2
@@ -45,6 +61,14 @@ services:
     ports:
      - 9096:9096
      - 9097:9097
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2gb
+        reservations:
+          cpus: '0.5'
+          memory: 2gb
     environment:
       KAFKA_CLUSTER_ID: N0UOwvnVR7ORiwq0M4do9w
       KAFKA_BROKER_ID: 3

@@ -18,6 +18,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.streams.KafkaStreams;
@@ -50,17 +51,19 @@ public class MaestroStreams implements Streams {
 
     private KafkaStreams innerStreams;
     private Properties originalProps;
-    private final Topology topology;
+    private final Supplier<Topology> topologyProvider;
+    private Topology topology = null;
     private StateListener stateListener;
     private final AtomicReference<Set<String>> inputTopics;
     private final ExecutorService threadPool;
 
-    public MaestroStreams(Topology topology, Properties props) {
+    public MaestroStreams(Supplier<Topology> topologyProvider, Properties props) {
         this.originalProps = setup(props);
         this.stateListener = null;
-        this.topology = topology;
+        this.topologyProvider = topologyProvider;
         this.inputTopics = new AtomicReference<>();
         threadPool = Executors.newCachedThreadPool();
+        this.topology = topologyProvider.get();
         this.innerStreams = new KafkaStreams(topology, this.originalProps);
         if (this.originalProps.get(MAESTRO_ADAPTER_INSTANCE_CONFIG) instanceof Adapter adapterResource) {
             this.stateListener = adapterResource;
@@ -149,6 +152,7 @@ public class MaestroStreams implements Streams {
 
             logger.info("Streams stopped!");
             this.originalProps = props;
+            this.topology = this.topologyProvider.get();
             this.innerStreams = new KafkaStreams(topology, props);
             this.innerStreams.setStateListener(this.stateListener);
             this.innerStreams.start();

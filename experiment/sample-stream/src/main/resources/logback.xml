@@ -8,7 +8,8 @@
 
 
     <logger name="org.apache.kafka" level="WARN" />
-    <logger name="io.vepo.kafka.stream" level="WARN" />
+    <logger name="dev.vepo.maestro.experiment.stream" level="INFO" />
+    <logger name="dev.vepo.kafka.maestro" level="INFO" />
     <root level="WARN">
         <appender-ref ref="CONSOLE" />
     </root>

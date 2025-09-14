@@ -93,6 +93,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         this.maxHistorySize = configs.getInt(MAESTRO_ADAPTER_HISTORY_SIZE_MAX_CONFIG);
         this.minHistorySize = configs.getInt(MAESTRO_ADAPTER_HISTORY_SIZE_MIN_CONFIG);
         var frequencyMs = configs.getLong(MAESTRO_ADAPTER_FREQUENCY_MS_CONFIG);
+        logger.info("Adapter configured! minHistory={} maxHistory={} frequency={}", minHistorySize, maxHistorySize, frequencyMs);
         taskExecutor.scheduleAtFixedRate(this::verify, frequencyMs, frequencyMs, TimeUnit.MILLISECONDS);       
     }
 
@@ -141,6 +142,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
     }
 
     private synchronized void verify() {
+        logger.info("Verifying adapter... status={}", context.streams());
         try {
             switch (context.streams()) {
                 case CREATED:
@@ -184,6 +186,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
                             recordEvent(Event.APPLY, Map.of(NUM_STREAM_THREADS_CONFIG, changes.numThreads()));
                         }
                     }
+                    break;
                 case PENDING_SHUTDOWN:
                 case NOT_RUNNING:
                 case PENDING_ERROR:

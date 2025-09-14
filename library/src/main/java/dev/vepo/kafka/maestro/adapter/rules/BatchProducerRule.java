@@ -1,5 +1,7 @@
 package dev.vepo.kafka.maestro.adapter.rules;
 
+import java.util.Objects;
+
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.streams.StreamsConfig;
 import org.slf4j.Logger;
@@ -15,6 +17,7 @@ public class BatchProducerRule implements AdapterRule {
     public StreamsContext evaluate(StreamsContext context, RequiredChanges changes) {
         if (context.throughput() == ThroughputState.UNSUSTAINABLE) {
             var avgWaitingThreads = context.averageWaitingThreads();
+            logger.info("Average waiting threads: {}", avgWaitingThreads);
             if (avgWaitingThreads > 0.1) {
                 logger.info("Producer is blocking application thread: {}%", avgWaitingThreads);
                 var avgBufferAvailable = context.averageBufferAvailable();
@@ -29,16 +32,21 @@ public class BatchProducerRule implements AdapterRule {
                     }
 
                     if (deltaLinger > 1.0) { // linger.ms is an integer
-                        var lingerMs = switch (context.instance()
-                                                      .originalConfigs()
-                                                      .get(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG))) {
-                                           case Integer iValue -> iValue;
-                                           case Number dValue ->  dValue.intValue();
-                                           case String sValue ->  Integer.valueOf(sValue);
-                                           default -> 0;
-                                       };
-                        
-                        changes.useValue(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), lingerMs + deltaLinger);
+                        var defaultLingerMs = context.instance()
+                                .originalConfigs()
+                                .get(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG));
+                        logger.info("Previous linger.ms={}", defaultLingerMs);
+                        if (Objects.nonNull(defaultLingerMs)) {
+                            var lingerMs = switch (defaultLingerMs) {
+                                               case Integer iValue -> iValue;
+                                               case Number dValue -> dValue.intValue();
+                                               case String sValue -> Integer.valueOf(sValue);
+                                               default -> 0;
+                                           };
+                            changes.useValue(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), (int) (lingerMs + deltaLinger));
+                        } else {
+                            changes.useValue(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), (int) deltaLinger);
+                        }
                     }
                 }
             }

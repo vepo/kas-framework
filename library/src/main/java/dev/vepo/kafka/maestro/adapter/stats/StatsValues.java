@@ -56,6 +56,13 @@ public class StatsValues {
         return this.values.size() >= minSize;
     }
 
+    public double max() {
+        return values.stream()
+                     .mapToDouble(Point::y)
+                     .max()
+                     .orElse(0.0);
+    }
+
     public Double average() {
         return values.stream()
                      .mapToDouble(Point::y)

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -41,7 +42,9 @@ import com.fasterxml.jackson.databind.ObjectWriter;
  *      Trips Data Dictionary</a>
  */
 public record TaxiTrip(@JsonProperty("VendorID") int vendorId,
+        @JsonDeserialize(using = InstantToLongDeserializer.class)
         @JsonProperty("tpep_pickup_datetime") long pickupTimestamp,
+        @JsonDeserialize(using = InstantToLongDeserializer.class)
         @JsonProperty("tpep_dropoff_datetime") long dropTimestamp,
         @JsonProperty("passenger_count") int passengerCount,
         @JsonProperty("trip_distance") double tripDistance,

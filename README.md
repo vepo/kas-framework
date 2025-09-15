@@ -45,3 +45,9 @@ Create a Kafka Stream that automatically tune itself.
 
 1. https://developer.ibm.com/articles/monitoring-apache-kafka-apps/
 2. https://docs.confluent.io/platform/current/kafka/monitoring.html#records-lead
+
+
+Failing
+
+> 2025-09-15 03:02:58.227 [kafka-coordinator-heartbeat-thread | maestro] WARN  o.a.k.c.c.i.ConsumerCoordinator - [Consumer clientId=maestro-8376583f-0091-4b9b-a449-2fc9a483a703-StreamThread-1-consumer, groupId=maestro] consumer poll timeout has expired. This means the time between subsequent calls to poll() was longer than the configured max.poll.interval.ms, which typically implies that the poll loop is spending too much time processing messages. You can address this either by increasing max.poll.interval.ms or by reducing the maximum size of batches returned in poll() with max.poll.records.
+> 2025-09-15 03:02:58.274 [kafka-coordinator-heartbeat-thread | maestro] WARN  o.a.k.c.c.i.ConsumerCoordinator - [Consumer clientId=maestro-8376583f-0091-4b9b-a449-2fc9a483a703-StreamThread-2-consumer, groupId=maestro] consumer poll timeout has expired. This means the time between subsequent calls to poll() was longer than the configured max.poll.interval.ms, which typically implies that the poll loop is spending too much time processing messages. You can address this either by increasing max.poll.interval.ms or by reducing the maximum size of batches returned in poll() with max.poll.records.

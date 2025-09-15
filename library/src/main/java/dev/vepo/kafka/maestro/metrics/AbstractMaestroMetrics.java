@@ -175,6 +175,8 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
                     name.group().equals("consumer-fetch-manager-metrics") &&
                     name.tags().containsKey("topic") ->
                 true;
+            case MetricName name when name.name().equals("last-poll-seconds-ago") &&
+                    name.group().equals("consumer-metrics") -> true;
 
             // Producer metrics
             case MetricName name when producerMetricsWatched(name.name()) &&

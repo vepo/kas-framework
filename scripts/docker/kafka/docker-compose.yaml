@@ -8,8 +8,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 2gb
+          cpus: '4'
+          memory: 4gb
         reservations:
           cpus: '0.5'
           memory: 2gb
@@ -36,8 +36,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 2gb
+          cpus: '4'
+          memory: 4gb
         reservations:
           cpus: '0.5'
           memory: 2gb
@@ -64,8 +64,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 2gb
+          cpus: '4'
+          memory: 4gb
         reservations:
           cpus: '0.5'
           memory: 2gb

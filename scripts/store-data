@@ -1,0 +1,3 @@
+#! /bin/bash
+
+tar -czvf executions/exec-$(date +%Y%m%d-%H%M%S).tar.gz --exclude=".gitignore"  scripts/docker/experiment/stats/

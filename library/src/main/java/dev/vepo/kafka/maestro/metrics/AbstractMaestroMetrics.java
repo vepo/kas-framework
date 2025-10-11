@@ -93,13 +93,11 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
     public void configure(Map<String, ?> configs) {
         var mConfigs = new MaestroConfigs(configs);
         var frequencyInMs = mConfigs.getLong(MaestroConfigs.MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG);
-        mainCollector = executor.scheduleAtFixedRate(this::collectMainMetrics, frequencyInMs, frequencyInMs,
-                TimeUnit.MILLISECONDS);
+        mainCollector = executor.scheduleAtFixedRate(this::collectMainMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
         if (isMainThread(configs)) {
             logger.info("Configuring main thread metrics collector: configs: {}", configs);
             environmentMetrics = new EnvironmentMetrics();
-            jvmCollector = executor.scheduleAtFixedRate(this::collectJvmMetrics, frequencyInMs, frequencyInMs,
-                    TimeUnit.MILLISECONDS);
+            jvmCollector = executor.scheduleAtFixedRate(this::collectJvmMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -129,6 +127,7 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
 
     @Override
     public void close() {
+        logger.info("Closing metrics...");
         if (Objects.nonNull(mainCollector)) {
             mainCollector.cancel(false);
         }
@@ -146,6 +145,7 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
             case "buffer-available-bytes" -> true;
             case "compression-rate-avg" -> true;
             case "record-send-rate" -> true;
+            case "record-send-total" -> true;
             case "record-size-avg" -> true;
             case "waiting-threads" -> true;
             default -> false;
@@ -153,6 +153,10 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
     }
 
     private boolean watched(MetricName metricName) {
+        if (metricName.tags().containsKey("client-id") && 
+            metricName.tags().get("client-id").endsWith("-restore-consumer")) {
+            return false;
+        }
         return switch (metricName) {
 
             // Consumer metrics
@@ -162,8 +166,6 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
 
             case MetricName name when name.name().equals("records-consumed-rate") &&
                     name.group().equals("consumer-fetch-manager-metrics") &&
-                    name.tags().containsKey("client-id") &&
-                    // !name.tags().get("client-id").endsWith("-restore-consumer") &&
                     name.tags().containsKey("topic") ->
                 true;
 
@@ -186,6 +188,7 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
             case MetricName name when name.name().equals("alive-stream-threads")
                     && name.group().equals("stream-metrics") ->
                 true;
+            case MetricName name when name.name().equals("request-latency-avg") -> true;
 
             default -> false;
         };

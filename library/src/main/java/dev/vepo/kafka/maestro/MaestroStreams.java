@@ -14,7 +14,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,8 +43,8 @@ public class MaestroStreams implements Streams {
             props.put(METRIC_REPORTER_CLASSES_CONFIG, StreamsHealthyMetrics.class.getName());
         }
         var configs = new MaestroConfigs(props);
-        props.put(MAESTRO_ADAPTER_INSTANCE_CONFIG,
-                configs.getConfiguredInstance(MAESTRO_ADAPTER_CLASS_CONFIG, Adapter.class));
+        props.put(MAESTRO_ADAPTER_INSTANCE_CONFIG, configs.getConfiguredInstance(MAESTRO_ADAPTER_CLASS_CONFIG, Adapter.class));
+        // props.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, MaestroRocksDBConfigSetter.class);
         return props;
     }
 

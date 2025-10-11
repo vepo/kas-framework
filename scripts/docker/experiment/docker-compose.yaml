@@ -16,52 +16,59 @@ services:
     volumes:
       - ./runtime:/app
       - ./dataset:/dataset
-    networks:
-      - maestro-network
-    extra_hosts:
-      kafka-0: 201.23.71.251
-      kafka-1: 201.23.71.251
-      kafka-2: 201.23.71.251
-  stream-vanilla:
-    image: openjdk:21-jdk
-    command: java -Xms1536m -Xmx1536m -jar /app/sample-stream-jar-with-dependencies.jar --app-id vanilla --test-id vanilla --type VANILLA
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 4gb
-        reservations:
-          cpus: '0.5'
-          memory: 3gb
     environment:
-      STATS_FOLDER: /app-stats
-    volumes:
-      - ./runtime:/app
-      - ./stats/vanilla:/app-stats
+      # DATA: STATS
+      DATA: RAW
+      MESSAGE_SIZE: 16384 ## 16k
     networks:
       - maestro-network
-    extra_hosts:
-      kafka-0: 201.23.71.251
-      kafka-1: 201.23.71.251
-      kafka-2: 201.23.71.251
-  # stream-maestro:
+    # extra_hosts:
+    #   kafka-0: 201.23.71.251
+    #   kafka-1: 201.23.71.251
+    #   kafka-2: 201.23.71.251
+  # stream-vanilla:
   #   image: openjdk:21-jdk
-  #   command: java -Xms1536m -Xmx1536m -jar /app/sample-stream-jar-with-dependencies.jar --app-id maestro --test-id maestro --type MAESTRO
+  #   # command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id vanilla --type VANILLA --topology STATS
+  #   command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id vanilla --type VANILLA --topology PASSTHROUGH
   #   deploy:
+  #     # replicas: 2
   #     resources:
   #       limits:
   #         cpus: '4'
-  #         memory: 4gb
+  #         memory: 6gb
   #       reservations:
   #         cpus: '0.5'
-  #         memory: 3gb
+  #         memory: 6gb
   #   environment:
   #     STATS_FOLDER: /app-stats
   #   volumes:
   #     - ./runtime:/app
-  #     - ./stats/maestro:/app-stats
+  #     - ./stats/vanilla:/app-stats
   #   networks:
   #     - maestro-network
+    # extra_hosts:
+    #   kafka-0: 201.23.71.251
+    #   kafka-1: 201.23.71.251
+    #   kafka-2: 201.23.71.251
+  stream-maestro:
+    image: openjdk:21-jdk
+    # command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id maestro --type MAESTRO --topology STATS
+    command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id maestro --type MAESTRO --topology PASSTHROUGH
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 6gb
+        reservations:
+          cpus: '0.5'
+          memory: 6gb
+    environment:
+      STATS_FOLDER: /app-stats
+    volumes:
+      - ./runtime:/app
+      - ./stats/maestro:/app-stats
+    networks:
+      - maestro-network
   #   extra_hosts:
   #     kafka-0: 201.23.71.251
   #     kafka-1: 201.23.71.251
@@ -69,7 +76,7 @@ services:
 networks:
   maestro-network:
     ## local
-    # external: true
+    external: true
     ## cloud
-    name: maestro-network
-    driver: bridge
+    # name: maestro-network
+    # driver: bridge

@@ -64,7 +64,7 @@ public record StreamsContext(KafkaStreams.State streams, ThroughputState through
                       .stream()
                       .filter(e -> e.getKey() instanceof JvmStatsKey psk && psk.name().equals("cpu-used"))
                       .map(Entry::getValue)
-                      .mapToDouble(StatsValues::max)
+                      .mapToDouble(StatsValues::average)
                       .average()
                       .orElse(0.0);
     }

@@ -2,7 +2,7 @@
 
 ./scripts/download-dataset
 
-mvn clean package -DskipTests
+mvn package -DskipTests
 
 (cd scripts/docker/experiment && docker-compose stop && docker-compose rm -f)
 

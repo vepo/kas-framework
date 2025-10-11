@@ -1,14 +1,9 @@
 package dev.vepo.maestro.experiment.stream.model;
 
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 
 /**
  * Sample data.
@@ -61,9 +56,4 @@ public record TaxiTrip(@JsonProperty("VendorID") int vendorId,
 
     private static final DateTimeFormatter hourlyFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
     private static final ZoneId nycZoneId = ZoneId.of("America/New_York");
-
-    public String getHourlyKey() {
-        Instant instant = Instant.ofEpochMilli(pickupTimestamp / 1000000);
-        return instant.atZone(nycZoneId).format(hourlyFormatter);
-    }
 }

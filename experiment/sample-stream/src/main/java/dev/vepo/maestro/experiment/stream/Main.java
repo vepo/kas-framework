@@ -304,10 +304,21 @@ public class Main implements Runnable {
                                     }));
         var formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         var zone = ZoneId.of("America/New_York");
-        taxiDataStream.selectKey((key, value) -> value.puLocationID())
+        taxiDataStream.selectKey((key, value) -> value.puLocationID());
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
                       .process(TripStatsAggregator::new, Topics.NYC_TAXI_STATS_STORE.topicName())
-                      .selectKey((key, value) -> formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone)))
+                      .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
+                      .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip()))
+                      .split()
+                      .branch((key, stats) -> stats instanceof FareStats, Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)
+                                                                                                                                  .to(Topics.NYC_TAXI_DASHBOARD_FARE.topicName(), Produced.with(Serdes.String(), JsonSerde.of(FareStats.class)))))
+                      .branch((key, stats) -> stats instanceof TipStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (TipStats) stats)
+                                                                                                                                 .to(Topics.NYC_TAXI_DASHBOARD_TIPS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(TipStats.class)))))
+                      .noDefaultBranch();
+        taxiDataStream.selectKey((key, value) -> value.doLocationID());
+                      .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_DO_LOCATION_ID.topicName()))
+                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_STATS_STORE.topicName())
+                      .selectKey((key, value) -> String.format("do-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip()))
                       .split()
                       .branch((key, stats) -> stats instanceof FareStats, Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)

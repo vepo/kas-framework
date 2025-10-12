@@ -10,8 +10,10 @@ docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create -
 docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic nyc-taxi-dashboard-tips                               --partitions 24 --replication-factor 2
 docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic nyc-taxi-trips                                        --partitions 24 --replication-factor 2
 docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic nyc-taxi-trips-by-pu-location-id-repartition          --partitions 24 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic nyc-taxi-trips-by-do-location-id-repartition          --partitions 24 --replication-factor 2
 docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic trips-per-hour                                        --partitions 24 --replication-factor 2
 docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic trips-per-hour-repartition                            --partitions 24 --replication-factor 2
 docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic streams-nyc-taxi-stats-store-changelog                --partitions 24 --replication-factor 2
 docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic streams-nyc-taxi-trips-by-pu-location-id-repartition  --partitions 24 --replication-factor 2
+docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic streams-nyc-taxi-trips-by-do-location-id-repartition  --partitions 24 --replication-factor 2
 docker exec kafka-0 kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic streams-trips-per-hour-repartition                    --partitions 24 --replication-factor 2

@@ -40,6 +40,7 @@ import dev.vepo.kafka.maestro.metrics.PerformanceMetricsCollector;
 import dev.vepo.maestro.experiment.stream.model.FareStats;
 import dev.vepo.maestro.experiment.stream.model.TaxiTrip;
 import dev.vepo.maestro.experiment.stream.model.TipStats;
+import dev.vepo.maestro.experiment.stream.model.PassengerStats;
 import dev.vepo.maestro.experiment.stream.model.TripStats;
 import dev.vepo.maestro.experiment.stream.serdes.JsonSerde;
 import picocli.CommandLine;
@@ -304,27 +305,31 @@ public class Main implements Runnable {
                                     }));
         var formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         var zone = ZoneId.of("America/New_York");
-        taxiDataStream.selectKey((key, value) -> value.puLocationID());
+        taxiDataStream.selectKey((key, value) -> value.puLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
                       .process(TripStatsAggregator::new, Topics.NYC_TAXI_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
-                      .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip()))
+                      .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
                       .branch((key, stats) -> stats instanceof FareStats, Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)
                                                                                                                                   .to(Topics.NYC_TAXI_DASHBOARD_FARE.topicName(), Produced.with(Serdes.String(), JsonSerde.of(FareStats.class)))))
                       .branch((key, stats) -> stats instanceof TipStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (TipStats) stats)
                                                                                                                                  .to(Topics.NYC_TAXI_DASHBOARD_TIPS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(TipStats.class)))))
+                      .branch((key, stats) -> stats instanceof PassengerStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (PassengerStats) stats)
+                                                                                                                                       .to(Topics.NYC_TAXI_DASHBOARD_PASSENGERS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(PassengerStats.class)))))
                       .noDefaultBranch();
-        taxiDataStream.selectKey((key, value) -> value.doLocationID());
+        taxiDataStream.selectKey((key, value) -> value.doLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_DO_LOCATION_ID.topicName()))
                       .process(TripStatsAggregator::new, Topics.NYC_TAXI_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("do-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
-                      .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip()))
+                      .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
                       .branch((key, stats) -> stats instanceof FareStats, Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)
                                                                                                                                   .to(Topics.NYC_TAXI_DASHBOARD_FARE.topicName(), Produced.with(Serdes.String(), JsonSerde.of(FareStats.class)))))
                       .branch((key, stats) -> stats instanceof TipStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (TipStats) stats)
                                                                                                                                  .to(Topics.NYC_TAXI_DASHBOARD_TIPS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(TipStats.class)))))
+                      .branch((key, stats) -> stats instanceof PassengerStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (PassengerStats) stats)
+                                                                                                                                       .to(Topics.NYC_TAXI_DASHBOARD_PASSENGERS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(PassengerStats.class)))))
                       .noDefaultBranch();
         return builder.build();
     }

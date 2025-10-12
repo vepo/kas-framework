@@ -5,6 +5,7 @@ import java.time.Instant;
 public record TripStats(long windowStart, 
                         long windowEnd, 
                         int totalTrips, 
+                        double averagePassangerCount,
                         double totalRevenue, 
                         double averageFare,
                         int lowTipCounter, 
@@ -16,6 +17,7 @@ public record TripStats(long windowStart,
         return new TripStats(Instant.now().toEpochMilli(),
                             Instant.now().toEpochMilli(),
                             0,
+                            0.0, 
                             0.0, 
                             0.0,
                             0,
@@ -29,6 +31,7 @@ public record TripStats(long windowStart,
         return new TripStats(windowStart,
                              windowEnd,
                              totalTrips + 1,
+                             ((averagePassangerCount * totalTrips) + trip.passengerCount()) / (totalTrips + 1),
                              totalRevenue + trip.totalAmount(),
                              ((averageFare * totalTrips) + trip.fareAmount()) / (totalTrips + 1),
                              lowTipCounter + (isLowTip(tipPercentualValue) ? 1 : 0),
@@ -70,5 +73,12 @@ public record TripStats(long windowStart,
                             this.negativeTipCounter,
                             this.noTipCounter);
     }
-    
+
+    public PassengerStats toPassangers() {
+        return new PassengerStats(this.windowStart,
+                            this.windowEnd,
+                            this.totalTrips,
+                            this.averagePassangerCount, 
+                            this.averageFare);
+    }    
 }

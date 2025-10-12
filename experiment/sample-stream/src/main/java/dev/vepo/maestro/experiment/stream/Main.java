@@ -1,6 +1,5 @@
 package dev.vepo.maestro.experiment.stream;
 
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -25,7 +24,6 @@ import org.apache.kafka.streams.kstream.Branched;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.Repartitioned;
-import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
@@ -96,10 +94,10 @@ public class Main implements Runnable {
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 2);
         props.put(StreamsConfig.STATE_DIR_CONFIG, "/opt/" + testId + "/state");
-        props.put(StreamsConfig.STATESTORE_CACHE_MAX_BYTES_CONFIG, 10 * 1024 * 1024L); // 10MB cache
-        props.put(StreamsConfig.WINDOW_STORE_CHANGE_LOG_ADDITIONAL_RETENTION_MS_CONFIG, Duration.ofHours(1).toMillis());
+        // props.put(StreamsConfig.STATESTORE_CACHE_MAX_BYTES_CONFIG, 10 * 1024 * 1024L); // 10MB cache
+        // props.put(StreamsConfig.WINDOW_STORE_CHANGE_LOG_ADDITIONAL_RETENTION_MS_CONFIG, Duration.ofHours(1).toMillis());
         props.put(StreamsConfig.METRIC_REPORTER_CLASSES_CONFIG, PerformanceMetricsCollector.class.getName());
-        props.put(StreamsConfig.BUFFERED_RECORDS_PER_PARTITION_CONFIG, 1000); // Reduce buffer size
+        // props.put(StreamsConfig.BUFFERED_RECORDS_PER_PARTITION_CONFIG, 1000); // Reduce buffer size
         try (var maestroStream = create(this::buildTopology, props);
                 var taskExecutor = Executors.newSingleThreadScheduledExecutor()) {
             var countDown = new CountDownLatch(1);
@@ -110,7 +108,7 @@ public class Main implements Runnable {
             taskExecutor.schedule(() -> {
                 maestroStream.close();
                 countDown.countDown();
-            }, 60, TimeUnit.MINUTES);
+            }, 45, TimeUnit.MINUTES);
             maestroStream.start();
             try {
                 countDown.await();
@@ -285,7 +283,7 @@ public class Main implements Runnable {
         // Use TumblingWindows with longer grace period for counting
         var windowSize = Duration.ofMinutes(1);
         var gracePeriod = Duration.ofMinutes(5); // Increased grace period
-        var retentionPeriod = windowSize.plus(gracePeriod).plus(Duration.ofHours(1)); // Clean up old data
+        var retentionPeriod = windowSize.plus(gracePeriod).plus(Duration.ofMinutes(15)); // Clean up old data
         var builder = new StreamsBuilder();
         var statsStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_STATS_STORE.topicName(),
                                                                                        retentionPeriod,

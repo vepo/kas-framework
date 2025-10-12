@@ -5,11 +5,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 2gb
+          cpus: '3'
+          memory: 4gb
         reservations:
-          cpus: '0.5'
-          memory: 2gb
+          cpus: '3'
+          memory: 4gb
     # deploy:
     #   mode: replicated
     #   replicas: 6
@@ -17,19 +17,19 @@ services:
       - ./runtime:/app
       - ./dataset:/dataset
     environment:
-      # DATA: STATS
-      DATA: RAW
+      DATA: STATS
+      # DATA: RAW
       MESSAGE_SIZE: 16384 ## 16k
-    networks:
-      - maestro-network
-    # extra_hosts:
-    #   kafka-0: 201.23.71.251
-    #   kafka-1: 201.23.71.251
-    #   kafka-2: 201.23.71.251
+    # networks:
+    #   - maestro-network
+    extra_hosts:
+      kafka-0: 201.23.74.39
+      kafka-1: 201.23.74.39
+      kafka-2: 201.23.74.39
   # stream-vanilla:
   #   image: openjdk:21-jdk
-  #   # command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id vanilla --type VANILLA --topology STATS
-  #   command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id vanilla --type VANILLA --topology PASSTHROUGH
+  #   command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id vanilla --type VANILLA --topology STATS
+  #   # command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id vanilla --type VANILLA --topology PASSTHROUGH
   #   deploy:
   #     # replicas: 2
   #     resources:
@@ -44,16 +44,16 @@ services:
   #   volumes:
   #     - ./runtime:/app
   #     - ./stats/vanilla:/app-stats
-  #   networks:
-  #     - maestro-network
-    # extra_hosts:
-    #   kafka-0: 201.23.71.251
-    #   kafka-1: 201.23.71.251
-    #   kafka-2: 201.23.71.251
+  #   # networks:
+  #   #   - maestro-network
+  #   extra_hosts:
+  #     kafka-0: 201.23.74.39
+  #     kafka-1: 201.23.74.39
+  #     kafka-2: 201.23.74.39
   stream-maestro:
     image: openjdk:21-jdk
-    # command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id maestro --type MAESTRO --topology STATS
-    command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id maestro --type MAESTRO --topology PASSTHROUGH
+    command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id maestro --type MAESTRO --topology STATS
+    # command: java -Xms2560m -Xmx2560m -jar /app/sample-stream-jar-with-dependencies.jar --app-id streams --test-id maestro --type MAESTRO --topology PASSTHROUGH
     deploy:
       resources:
         limits:
@@ -67,16 +67,16 @@ services:
     volumes:
       - ./runtime:/app
       - ./stats/maestro:/app-stats
-    networks:
-      - maestro-network
-  #   extra_hosts:
-  #     kafka-0: 201.23.71.251
-  #     kafka-1: 201.23.71.251
-  #     kafka-2: 201.23.71.251
+    # networks:
+    #   - maestro-network
+    extra_hosts:
+      kafka-0: 201.23.74.39
+      kafka-1: 201.23.74.39
+      kafka-2: 201.23.74.39
 networks:
   maestro-network:
     ## local
-    external: true
+    # external: true
     ## cloud
-    # name: maestro-network
-    # driver: bridge
+    name: maestro-network
+    driver: bridge

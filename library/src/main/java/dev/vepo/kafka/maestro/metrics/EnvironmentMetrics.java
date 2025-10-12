@@ -44,7 +44,26 @@ public class EnvironmentMetrics {
     private static long loadTotalMemory() {
         try {
             // it can be 'max', read from another place
-            return Long.parseLong(new String(Files.readAllBytes(Paths.get("/sys/fs/cgroup", cgroup(), "memory.max"))).trim());
+            var cgroup = cgroup();
+            var memorySliceConfig = Paths.get("/sys/fs/cgroup", cgroup, "memory.max");
+            if (!memorySliceConfig.toFile().exists()) {
+                // sometimes the memory.max file resides inside the main cgroup
+                var cgroupPath = Paths.get(cgroup);                
+                if (cgroupPath.getNameCount() > 1 && Paths.get("/sys/fs/cgroup", cgroupPath.getName(0).toString(), "memory.max")
+                         .toFile()
+                         .exists()) {
+                    memorySliceConfig = Paths.get("/sys/fs/cgroup", cgroupPath.getName(0).toString(), "memory.max");
+                }
+            }
+
+            if (memorySliceConfig.toFile().exists()) {
+                var maxMemoryContent = new String(Files.readAllBytes(memorySliceConfig)).trim();
+                if (!"max".equalsIgnoreCase(maxMemoryContent)) {
+                    return Long.parseLong(maxMemoryContent);
+                }
+            } 
+            // trust on JVM!!!
+            return Runtime.getRuntime().maxMemory();
         } catch (NumberFormatException | IOException e) {
             throw new IllegalStateException("Cannot read cgroup memory max file", e);
         }

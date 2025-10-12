@@ -23,7 +23,7 @@ public class DataGenerator {
     private static final String RAW_TOPIC = "raw-input";
     private static final String BOOTSTRAP_SERVERS = "kafka-0:9092,kafka-1:9094,kafka-2:9096";
     private static final int THREADS = Runtime.getRuntime().availableProcessors() * 2;
-    private static final int TARGET_RATE_PER_THREAD = 90000 / THREADS;
+    private static final int TARGET_RATE_PER_THREAD = 100000 / THREADS;
     private static final int BATCH_SIZE = 25;
 
     @FunctionalInterface
@@ -82,7 +82,7 @@ public class DataGenerator {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
+        // props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
         props.put(ProducerConfig.LINGER_MS_CONFIG, 100);
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, 262144);
         props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
@@ -146,7 +146,7 @@ public class DataGenerator {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
-        props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
+        // props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
         props.put(ProducerConfig.LINGER_MS_CONFIG, 100);
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, 262144);
         props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);

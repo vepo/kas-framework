@@ -65,11 +65,15 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         this.taskExecutor = Executors.newSingleThreadScheduledExecutor();
         this.metrics = Collections.synchronizedMap(new HashMap<>());
         this.context = new StreamsContext(State.CREATED, ThroughputState.INITIALIZING, ResourcesState.AVAILABLE, metrics, null);
+        // this.rules = List.of(new ThroughputAnalyzerRule(), 
+        //                      new ThreadAllocationRule(),
+        //                      new AdjustConsumerFetchSizeRule(),
+        //                      new UseCompressionOnProducerRule(),
+        //                      new BatchProducerRule());
+        // this.rules = List.of(new ThroughputAnalyzerRule(), 
+        //                      new ThreadAllocationRule());
         this.rules = List.of(new ThroughputAnalyzerRule(), 
-                             new ThreadAllocationRule(),
-                             new AdjustConsumerFetchSizeRule(),
-                             new UseCompressionOnProducerRule(),
-                             new BatchProducerRule());
+                             new AdjustConsumerFetchSizeRule());
         // this.rules = List.of(new ThroughputAnalyzerRule(),
         //                      new AdjustConsumerFetchSizeRule());
         this.clusterMetricsCollector = null;

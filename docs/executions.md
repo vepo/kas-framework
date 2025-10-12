@@ -7,3 +7,4 @@ exec-20251012-011858.tar.gz UseCompressionOnProducerRule
 exec-20251012-021335.tar.gz TODOS
 
 exec-20251012-160635.tar.gz TODOS - NE - SE
+exec-20251012-204455.tar.gz ThreadAllocationRule - NE - SE

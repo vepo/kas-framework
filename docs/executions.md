@@ -5,3 +5,5 @@ exec-20251011-225346.tar.gz AdjustConsumerFetchSizeRule
 exec-20251012-002947.tar.gz BatchProducerRule
 exec-20251012-011858.tar.gz UseCompressionOnProducerRule
 exec-20251012-021335.tar.gz TODOS
+
+exec-20251012-160635.tar.gz TODOS - NE - SE

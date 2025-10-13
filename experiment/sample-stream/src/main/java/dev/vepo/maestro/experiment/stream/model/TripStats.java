@@ -8,6 +8,9 @@ public record TripStats(long windowStart,
                         double averagePassangerCount,
                         double totalRevenue, 
                         double averageFare,
+                        double averageDistance,
+                        double averageDuration,
+                        double averageToll,
                         int lowTipCounter, 
                         int highTipCounter,
                         int negativeTipCounter, 
@@ -17,6 +20,9 @@ public record TripStats(long windowStart,
         return new TripStats(Instant.now().toEpochMilli(),
                             Instant.now().toEpochMilli(),
                             0,
+                            0.0, 
+                            0.0, 
+                            0.0, 
                             0.0, 
                             0.0, 
                             0.0,
@@ -34,6 +40,9 @@ public record TripStats(long windowStart,
                              ((averagePassangerCount * totalTrips) + trip.passengerCount()) / (totalTrips + 1),
                              totalRevenue + trip.totalAmount(),
                              ((averageFare * totalTrips) + trip.fareAmount()) / (totalTrips + 1),
+                             ((averageDistance * totalTrips) + trip.tripDistance()) / (totalTrips + 1),
+                             ((averageDuration * totalTrips) + (trip.dropTimestamp() - trip.pickupTimestamp())) / (totalTrips + 1),
+                             ((averageToll * totalTrips) + trip.tollsAmount()) / (totalTrips + 1),
                              lowTipCounter + (isLowTip(tipPercentualValue) ? 1 : 0),
                              highTipCounter + (isHighTip(tipPercentualValue) ? 1 : 0),
                              negativeTipCounter + (isNegativeTip(tipPercentualValue) ? 1 : 0),
@@ -61,7 +70,10 @@ public record TripStats(long windowStart,
                             this.windowEnd,
                             this.totalTrips,
                             this.totalRevenue,
-                            this.averageFare);
+                            this.averageFare,
+                            this.averageToll,
+                            this.averageDistance,
+                            this.averageDuration);
     }
 
     public TipStats toTip() {
@@ -71,7 +83,9 @@ public record TripStats(long windowStart,
                             this.lowTipCounter,
                             this.highTipCounter,
                             this.negativeTipCounter,
-                            this.noTipCounter);
+                            this.noTipCounter,
+                            this.averageDistance,
+                            this.averageDuration);
     }
 
     public PassengerStats toPassangers() {
@@ -79,6 +93,8 @@ public record TripStats(long windowStart,
                             this.windowEnd,
                             this.totalTrips,
                             this.averagePassangerCount, 
-                            this.averageFare);
+                            this.averageFare,
+                            this.averageDistance,
+                            this.averageDuration);
     }    
 }

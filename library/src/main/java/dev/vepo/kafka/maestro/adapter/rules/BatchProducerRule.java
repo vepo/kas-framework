@@ -18,7 +18,7 @@ public class BatchProducerRule implements AdapterRule {
         if (context.throughput() == ThroughputState.UNSUSTAINABLE) {
             var avgWaitingThreads = context.averageWaitingThreads();
             logger.info("Average waiting threads: {}", avgWaitingThreads);
-            if (avgWaitingThreads > 0.1) {
+            if (avgWaitingThreads > 0.04) {
                 logger.info("Producer is blocking application thread: {}%", avgWaitingThreads);
                 var avgBufferAvailable = context.averageBufferAvailable();
                 var avgRecordSendRate = context.averageRecordSendRate();

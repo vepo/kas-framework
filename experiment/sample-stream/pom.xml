@@ -19,7 +19,7 @@
     <name>Maestro :: Experiment :: Sample Stream</name>
 
     <properties>
-        <main.class>dev.vepo.maestro.experiment.stream.Main</main.class>
+        <main.class>dev.vepo.maestro.experiment.stream.StreamPerformanceEvaluation</main.class>
     </properties>
 
     <dependencies>
@@ -38,10 +38,6 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>info.picocli</groupId>
-            <artifactId>picocli</artifactId>
         </dependency>
         <dependency>
             <groupId>dev.vepo.kafka</groupId>

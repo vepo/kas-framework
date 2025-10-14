@@ -15,7 +15,14 @@ import org.slf4j.LoggerFactory;
 
 public class MetricsRecorder implements MetricListener {
     private static final Logger logger = LoggerFactory.getLogger(MetricsRecorder.class);
-    private static final Path DATA_PATH = Paths.get(System.getenv("STATS_FOLDER"));
+    private static final Path DATA_PATH = Paths.get(System.getProperty("STATS_FOLDER"));
+
+    public MetricsRecorder() {
+        if (!DATA_PATH.toFile().exists()) {
+            logger.info("Directory not found! Creating: {} ...", DATA_PATH);
+            DATA_PATH.toFile().mkdirs();
+        }
+    }
 
     @Override
     public void feed(PerformanceMetric metric) {

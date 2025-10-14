@@ -1,5 +1,7 @@
 package dev.vepo.kafka.maestro.metrics;
 
+import static org.apache.kafka.clients.CommonClientConfigs.METRIC_REPORTER_CLASSES_CONFIG;
+
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Objects;
@@ -24,6 +26,7 @@ public class BrokerMetricsCollector implements Configurable, Closeable {
     private static AdminClient createAdmin(Map<String, ?> props) {
         var adminProperties = new Properties();
         adminProperties.putAll(props);
+        adminProperties.remove(METRIC_REPORTER_CLASSES_CONFIG);
         return AdminClient.create(adminProperties);
     }
 
@@ -40,12 +43,12 @@ public class BrokerMetricsCollector implements Configurable, Closeable {
         this.topics = topics;
         this.topicsDone = this.brokerDone = false;
         this.refClient = new AtomicReference<>();
-        this.executor = Executors.newSingleThreadScheduledExecutor();
+        this.executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "Broker Metrics Collector"));
     }
 
     @Override
     public void configure(Map<String, ?> configs) {
-        logger.info("Configuring Brokers Metric Colletor!", configs);
+        logger.info("Configuring Brokers Metric Colletor! {}", configs);
         this.topicsDone = this.brokerDone = false;
         this.refClient.set(createAdmin(configs));
         executor.submit(this::verifyTopics);

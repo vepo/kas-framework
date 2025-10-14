@@ -1,9 +1,12 @@
 package dev.vepo.kafka.maestro;
 
+import static org.apache.kafka.streams.StreamsConfig.CLIENT_ID_CONFIG;
+
 import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
@@ -34,13 +37,23 @@ public class MaestroConfigs extends AbstractConfig {
     public static final String NUM_STREAM_THREADS_CONFIG = StreamsConfig.NUM_STREAM_THREADS_CONFIG;
     public static final String NUM_STREAM_THREADS_DOC = "The number of threads to execute stream processing.";
 
+    public static final String ADAPTER_RULE_CLASSES_CONFIG = "maestro.adapter.rule";
+    public static final String ADAPTER_RULE_CLASSES_DOC = "A list of classes to use as adapter rules. Implementing the <code>dev.vepo.kafka.maestro.adapter.rules.AdapterRule</code> interface allows plugging in classes that will be used to evaluate adapter rules.";
+
+
     public static final Duration DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY = Duration.ofMinutes(5);
     public static final Duration DEFAULT_METRICS_COLLECTION_FREQUENCY = Duration.ofSeconds(1);
     public static final int DEFAULT_NUM_STREAM_THREADS = 2;
     public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MAX = (int) Duration.ofMinutes(60).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY);
     public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN = (int) Duration.ofMinutes(10).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY);
 
-    private static final ConfigDef CONFIG = new ConfigDef().define(MAESTRO_ADAPTER_CLASS_CONFIG,
+    private static final ConfigDef CONFIG = new ConfigDef().define(CLIENT_ID_CONFIG, Type.STRING, "", Importance.MEDIUM, CommonClientConfigs.CLIENT_ID_DOC)
+                                                           .define(ADAPTER_RULE_CLASSES_CONFIG,
+                                                                   Type.LIST,
+                                                                   null,
+                                                                   Importance.LOW,
+                                                                   ADAPTER_RULE_CLASSES_DOC)
+                                                           .define(MAESTRO_ADAPTER_CLASS_CONFIG,
                                                                    Type.CLASS,
                                                                    Adapter.class,
                                                                    Importance.LOW,

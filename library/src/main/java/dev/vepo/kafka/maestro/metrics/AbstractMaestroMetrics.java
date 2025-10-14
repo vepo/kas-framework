@@ -13,6 +13,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
@@ -26,17 +27,17 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
     private static final Logger logger = LoggerFactory.getLogger(AbstractMaestroMetrics.class);
     private final Object lock;
     private final Map<MetricKey, KafkaMetric> metrics;
-    private final ScheduledExecutorService executor;
+    private ScheduledExecutorService executor;
     private String prefix;
     private EnvironmentMetrics environmentMetrics;
     private ScheduledFuture<?> mainCollector;
     private ScheduledFuture<?> jvmCollector;
 
-    protected AbstractMaestroMetrics(Object lock) {
-        this.lock = lock;
+    protected AbstractMaestroMetrics() {
+        this.lock = new Object();
         prefix = "";
         metrics = Collections.synchronizedMap(new HashMap<>());
-        executor = Executors.newSingleThreadScheduledExecutor();
+        this.executor = null;
         this.environmentMetrics = null;
         this.mainCollector = null;
         this.jvmCollector = null;
@@ -47,8 +48,7 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
     private boolean isMainThread(Map<String, ?> configs) {
         if (configs.containsKey(APPLICATION_ID_CONFIG) && configs.containsKey(CLIENT_ID_CONFIG)) {
             var clientId = (String) configs.get(CLIENT_ID_CONFIG);
-            return Objects.nonNull(clientId) && !clientId.endsWith("-admin") && !clientId.endsWith("-producer")
-                    && !clientId.endsWith("-consumer");
+            return !clientId.endsWith("-producer") && !clientId.endsWith("-consumer");
         }
         return false;
     }
@@ -91,13 +91,20 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
 
     @Override
     public void configure(Map<String, ?> configs) {
+        logger.info("Setup metrics! class={}, configs={}", getClass(), configs);
         var mConfigs = new MaestroConfigs(configs);
-        var frequencyInMs = mConfigs.getLong(MaestroConfigs.MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG);
-        mainCollector = executor.scheduleAtFixedRate(this::collectMainMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
-        if (isMainThread(configs)) {
-            logger.info("Configuring main thread metrics collector: configs: {}", configs);
-            environmentMetrics = new EnvironmentMetrics();
-            jvmCollector = executor.scheduleAtFixedRate(this::collectJvmMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
+        var clientConfig = mConfigs.getString(CommonClientConfigs.CLIENT_ID_CONFIG);
+        // do not collect for admin!
+        if (!clientConfig.endsWith("-admin")) {
+            var frequencyInMs = mConfigs.getLong(MaestroConfigs.MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG);
+            if (Objects.isNull(executor)) {
+                executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "Metric Collector %s - %s".formatted(getClass(), configs.get(CommonClientConfigs.CLIENT_ID_CONFIG))));
+            }
+            mainCollector = executor.scheduleAtFixedRate(this::collectMainMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
+            if (isMainThread(configs)) {
+                environmentMetrics = new EnvironmentMetrics();
+                jvmCollector = executor.scheduleAtFixedRate(this::collectJvmMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
+            }
         }
     }
 
@@ -127,16 +134,38 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
 
     @Override
     public void close() {
-        logger.info("Closing metrics...");
+        logger.debug("Closing metrics...");
         if (Objects.nonNull(mainCollector)) {
-            mainCollector.cancel(false);
+            logger.debug("Cancelling main collector...");
+            mainCollector.cancel(true);
+            mainCollector = null;
         }
         if (Objects.nonNull(jvmCollector)) {
-            jvmCollector.cancel(false);
+            logger.debug("Cancelling JVM collector...");
+            jvmCollector.cancel(true);
+            jvmCollector = null;
         }
+        // Clear metrics map
+        metrics.clear();
+
         if (Objects.nonNull(executor)) {
+            logger.debug("Shutting down executor....");
             executor.shutdown();
+            try {
+                // Wait for tasks to complete
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    logger.warn("Executor did not terminate in time, forcing shutdown...");
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                logger.warn("Interrupted while waiting for executor termination", e);
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            } finally {
+                executor = null;
+            }
         }
+        logger.debug("Metric closed!!!");
     }
 
     private boolean producerMetricsWatched(String metricName) {

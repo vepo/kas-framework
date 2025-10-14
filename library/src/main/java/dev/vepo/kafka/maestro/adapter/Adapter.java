@@ -13,6 +13,7 @@ import static dev.vepo.kafka.maestro.adapter.stats.StatsKey.topic;
 import static dev.vepo.kafka.maestro.metrics.MetricsRecorder.recordEvent;
 import static org.apache.kafka.streams.StreamsConfig.NUM_STREAM_THREADS_CONFIG;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -62,9 +63,11 @@ public class Adapter implements MetricListener, Configurable, StateListener {
     public Adapter() {
         this.maxHistorySize = DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MAX;
         this.minHistorySize = DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN;
-        this.taskExecutor = Executors.newSingleThreadScheduledExecutor();
+        this.taskExecutor = Executors.newSingleThreadScheduledExecutor(r -> new Thread("Adapter"));
         this.metrics = Collections.synchronizedMap(new HashMap<>());
         this.context = new StreamsContext(State.CREATED, ThroughputState.INITIALIZING, ResourcesState.AVAILABLE, metrics, null);
+        this.rules = new ArrayList<>();
+        this.rules.add(new ThroughputAnalyzerRule());
         // this.rules = List.of(new ThroughputAnalyzerRule(), 
         //                      new ThreadAllocationRule(),
         //                      new AdjustConsumerFetchSizeRule(),
@@ -76,8 +79,8 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         //                      new AdjustConsumerFetchSizeRule());
         // this.rules = List.of(new ThroughputAnalyzerRule(),
         //                      new UseCompressionOnProducerRule());
-        this.rules = List.of(new ThroughputAnalyzerRule(),
-                             new BatchProducerRule());
+        // this.rules = List.of(new ThroughputAnalyzerRule(),
+        //                      new BatchProducerRule());
         this.clusterMetricsCollector = null;
     }
 
@@ -96,6 +99,16 @@ public class Adapter implements MetricListener, Configurable, StateListener {
     public void configure(Map<String, ?> props) {
         logger.info("Setting up adapter with {}", props);
         var configs = new MaestroConfigs(props);
+        var configuredRules = configs.getConfiguredInstances(MaestroConfigs.ADAPTER_RULE_CLASSES_CONFIG, AdapterRule.class);
+        if (Objects.isNull(configuredRules) || configuredRules.isEmpty()) {
+            this.rules.add(new ThreadAllocationRule());
+            this.rules.add(new AdjustConsumerFetchSizeRule());
+            this.rules.add(new UseCompressionOnProducerRule());
+            this.rules.add(new BatchProducerRule());
+        } else {
+            this.rules.addAll(configuredRules);
+        }
+        logger.info("Rules: {}", rules);
         this.maxHistorySize = configs.getInt(MAESTRO_ADAPTER_HISTORY_SIZE_MAX_CONFIG);
         this.minHistorySize = configs.getInt(MAESTRO_ADAPTER_HISTORY_SIZE_MIN_CONFIG);
         var frequencyMs = configs.getLong(MAESTRO_ADAPTER_FREQUENCY_MS_CONFIG);

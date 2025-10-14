@@ -1,11 +1,13 @@
 package dev.vepo.maestro.experiment.data.generator;
 
 import java.io.File;
+import java.io.IOException;
 import java.security.InvalidParameterException;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -17,8 +19,12 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DataGenerator {
+    private static final Logger logger = LoggerFactory.getLogger(DataGenerator.class);
+
     private static final String NYC_TAXI_TOPIC = "nyc-taxi-trips";
     private static final String RAW_TOPIC = "raw-input";
     private static final String BOOTSTRAP_SERVERS = "kafka-0:9092,kafka-1:9094,kafka-2:9096";
@@ -31,20 +37,38 @@ public class DataGenerator {
         void run(int threadId);
     }
 
-    public static void main(String[] args) throws InterruptedException, ExecutionException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
         var generator = new DataGenerator(THREADS);
-        generator.start();
+        try(var executor = Executors.newSingleThreadExecutor()) {
+            var server = new CommandServer(command -> {
+                switch (command) {
+                    case START:
+                        executor.submit(() -> generator.start());
+                        break;
+                    case STOP:
+                        generator.stop();
+                        break;
+                    case DONE:
+                        generator.stop(); // Also stop on DONE command
+                        break;
+                }
+            });
+            server.start(7777);
+        }
     }
 
     private final int numThreads;
     private final AtomicBoolean running;
     private final CountDownLatch latch;
     private final Runner runner;
+    private ThreadPoolExecutor executorService;
+    private final AtomicBoolean isStarted;
 
     public DataGenerator(int numThreads) {
         this.numThreads = numThreads;
-        this.running = new AtomicBoolean(true);
+        this.running = new AtomicBoolean(false);
         this.latch = new CountDownLatch(1);
+        this.isStarted = new AtomicBoolean(false);
         this.runner = switch (System.getenv("DATA")) {
             case "RAW" -> this::runOnceRaw;
             case "STATS" -> this::runOnceStats;
@@ -52,28 +76,80 @@ public class DataGenerator {
         };
     }
 
-    private void start() throws InterruptedException, ExecutionException {
+    public void start() {
+        if (isStarted.getAndSet(true)) {
+            logger.warn("DataGenerator is already started");
+            return;
+        }
+        
+        running.set(true);
+        
         Runtime.getRuntime()
                .addShutdownHook(new Thread(() -> {
-                   this.running.set(false);
-                   try {
-                       this.latch.await(5, TimeUnit.SECONDS);
-                   } catch (InterruptedException e) {
-                       System.out.println("System does not exist by itself.");
-                   }
+                   logger.info("Shutdown hook triggered");
+                   this.stop();
                }));
-        try (var executors = new ThreadPoolExecutor(numThreads,
-                                                    numThreads,
-                                                    0L, TimeUnit.MILLISECONDS,
-                                                    new LinkedBlockingQueue<>(10000),
-                                                    new ThreadPoolExecutor.CallerRunsPolicy())) {
+        
+        executorService = new ThreadPoolExecutor(numThreads,
+                                                numThreads,
+                                                0L, TimeUnit.MILLISECONDS,
+                                                new LinkedBlockingQueue<>(10000),
+                                                new ThreadPoolExecutor.CallerRunsPolicy());
+        
+        try {
             var completions = IntStream.range(0, numThreads)
-                                       .mapToObj(t -> executors.submit(() -> runner.run(t)))
+                                       .mapToObj(t -> executorService.submit(() -> runner.run(t)))
                                        .toList();
+            
+            // Wait for all tasks to complete (which happens when running becomes false)
             for (var c : completions) {
                 c.get();
             }
+            
+            logger.info("All producer threads completed");
+            latch.countDown();
+            
+        } catch (InterruptedException e) {
+            logger.error("Data generation interrupted", e);
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            logger.error("Error during data generation", e);
+        } finally {
+            isStarted.set(false);
         }
+    }
+
+    public void stop() {
+        if (!running.getAndSet(false)) {
+            logger.info("DataGenerator is already stopped");
+            return;
+        }
+        
+        logger.info("Stopping DataGenerator...");
+        
+        // Shutdown executor service
+        if (executorService != null) {
+            try {
+                executorService.shutdown();
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    logger.warn("Forcing executor service shutdown");
+                    executorService.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                logger.warn("Interrupted during executor shutdown", e);
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        // Count down the latch to release any waiting threads
+        latch.countDown();
+        
+        logger.info("DataGenerator stopped successfully");
+    }
+
+    public boolean isRunning() {
+        return running.get() && isStarted.get();
     }
 
     private void runOnceStats(int thread) {
@@ -94,7 +170,7 @@ public class DataGenerator {
 
         try (var producer = new KafkaProducer<String, String>(props)) {
             // Rate control
-            System.out.printf("Starting STATS producer thread [%d]: %d msg/sec%n", thread, TARGET_RATE_PER_THREAD);
+            logger.info("Starting STATS producer thread {}: {} msg/sec", thread, TARGET_RATE_PER_THREAD);
 
             long messagesInBatch = 0;
             long totalMessagesSent = 0;
@@ -102,7 +178,7 @@ public class DataGenerator {
 
             // Main loop
             long loopStart = System.nanoTime();
-            while (running.get()) {
+            while (running.get() && !Thread.currentThread().isInterrupted()) {
                 var data = dataSupplier.next();
                 // Send message
                 var record = new ProducerRecord<String, String>(NYC_TAXI_TOPIC, null, data.dropTimestamp(), UUID.randomUUID().toString(), data.toJson());
@@ -127,16 +203,19 @@ public class DataGenerator {
 
                 // Periodic reporting (every second)
                 if (System.currentTimeMillis() - lastReportTime >= 5000) {
-                    System.out.printf("Thread[%d]: Sent %d messages (%.1f msg/sec)%n",
+                    logger.info("Thread[{}]: Sent {} messages ({} msg/sec)",
                                       thread, totalMessagesSent, totalMessagesSent / ((System.currentTimeMillis() - lastReportTime) / 1000.0));
                     totalMessagesSent = 0;
                     lastReportTime = System.currentTimeMillis();
                 }
             }
 
-            System.out.println("Producer completed");
+            logger.info("Producer thread [{}] completed", thread);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            logger.info("Producer thread [{}] interrupted", thread);
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            logger.error("Error in producer thread [{}]", thread, e);
         }
     }
 
@@ -158,7 +237,7 @@ public class DataGenerator {
 
         try (var producer = new KafkaProducer<byte[], byte[]>(props)) {
             // Rate control
-            System.out.printf("Starting RAW producer thread [%d]: %d msg/sec%n", thread, TARGET_RATE_PER_THREAD);
+            logger.info("Starting RAW producer thread [{}]: {} msg/sec", thread, TARGET_RATE_PER_THREAD);
 
             long messagesInBatch = 0;
             long totalMessagesSent = 0;
@@ -166,7 +245,7 @@ public class DataGenerator {
 
             // Main loop
             long loopStart = System.nanoTime();
-            while (running.get()) {
+            while (running.get() && !Thread.currentThread().isInterrupted()) {
                 var data = dataSupplier.next();
                 // Send message
                 var record = new ProducerRecord<byte[], byte[]>(RAW_TOPIC, UUID.randomUUID().toString().getBytes(), data);
@@ -191,16 +270,19 @@ public class DataGenerator {
 
                 // Periodic reporting (every second)
                 if (System.currentTimeMillis() - lastReportTime >= 5000) {
-                    System.out.printf("Thread[%d]: Sent %d messages (%.1f msg/sec)%n",
+                    logger.info("Thread[{}]: Sent {} messages ({} msg/sec)",
                                       thread, totalMessagesSent, totalMessagesSent / ((System.currentTimeMillis() - lastReportTime) / 1000.0));
                     totalMessagesSent = 0;
                     lastReportTime = System.currentTimeMillis();
                 }
             }
 
-            System.out.println("Producer completed");
+            logger.info("Producer thread [{}] completed", thread);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            logger.info("Producer thread [{}] interrupted", thread);
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            logger.error("Error in producer thread [{}]", thread, e);
         }
     }
 }

@@ -9,5 +9,6 @@ module maestro.kafkaStream {
 
     exports dev.vepo.kafka.maestro.metrics;
     exports dev.vepo.kafka.maestro;
+    exports dev.vepo.kafka.maestro.adapter.rules;
     exports dev.vepo.kafka.maestro.adapter to kafka.clients;
 }

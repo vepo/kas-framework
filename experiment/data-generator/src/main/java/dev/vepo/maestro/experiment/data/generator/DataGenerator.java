@@ -3,6 +3,7 @@ package dev.vepo.maestro.experiment.data.generator;
 import java.io.File;
 import java.io.IOException;
 import java.security.InvalidParameterException;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -29,21 +30,21 @@ public class DataGenerator {
     private static final String RAW_TOPIC = "raw-input";
     private static final String BOOTSTRAP_SERVERS = "kafka-0:9092,kafka-1:9094,kafka-2:9096";
     private static final int THREADS = Runtime.getRuntime().availableProcessors() * 2;
-    private static final int TARGET_RATE_PER_THREAD = 100000 / THREADS;
+    private static final int TARGET_RATE_PER_THREAD = 70000 / THREADS;
     private static final int BATCH_SIZE = 25;
 
     @FunctionalInterface
     private interface Runner {
-        void run(int threadId);
+        void run(int threadId, String arguments);
     }
 
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
         var generator = new DataGenerator(THREADS);
         try(var executor = Executors.newSingleThreadExecutor()) {
-            var server = new CommandServer(command -> {
+            var server = new CommandServer((command, type, arguments) -> {
                 switch (command) {
                     case START:
-                        executor.submit(() -> generator.start());
+                        executor.submit(() -> generator.start(type, arguments));
                         break;
                     case STOP:
                         generator.stop();
@@ -60,7 +61,7 @@ public class DataGenerator {
     private final int numThreads;
     private final AtomicBoolean running;
     private final CountDownLatch latch;
-    private final Runner runner;
+    private final Map<String, Runner> runners;
     private ThreadPoolExecutor executorService;
     private final AtomicBoolean isStarted;
 
@@ -69,14 +70,11 @@ public class DataGenerator {
         this.running = new AtomicBoolean(false);
         this.latch = new CountDownLatch(1);
         this.isStarted = new AtomicBoolean(false);
-        this.runner = switch (System.getenv("DATA")) {
-            case "RAW" -> this::runOnceRaw;
-            case "STATS" -> this::runOnceStats;
-            default -> throw new InvalidParameterException("Invalid DATA value! %s".formatted(System.getenv("DATA")));
-        };
+        this.runners = Map.of("RAW", this::runOnceRaw,
+                              "STATS", this::runOnceStats);
     }
 
-    public void start() {
+    public void start(String type, String arguments) {
         if (isStarted.getAndSet(true)) {
             logger.warn("DataGenerator is already started");
             return;
@@ -98,7 +96,7 @@ public class DataGenerator {
         
         try {
             var completions = IntStream.range(0, numThreads)
-                                       .mapToObj(t -> executorService.submit(() -> runner.run(t)))
+                                       .mapToObj(t -> executorService.submit(() -> runners.get(type).run(t, arguments)))
                                        .toList();
             
             // Wait for all tasks to complete (which happens when running becomes false)
@@ -152,7 +150,7 @@ public class DataGenerator {
         return running.get() && isStarted.get();
     }
 
-    private void runOnceStats(int thread) {
+    private void runOnceStats(int thread, String arguments) {
         // Create Kafka producer
         var props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
@@ -219,7 +217,7 @@ public class DataGenerator {
         }
     }
 
-    private void runOnceRaw(int thread) {
+    private void runOnceRaw(int thread, String arguments) {
         // Create Kafka producer
         var props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
@@ -233,7 +231,7 @@ public class DataGenerator {
         props.put(ProducerConfig.ACKS_CONFIG, "1");
         props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
-        var dataSupplier = new RawDataSupplier();
+        var dataSupplier = new RawDataSupplier(Integer.parseInt(arguments));
 
         try (var producer = new KafkaProducer<byte[], byte[]>(props)) {
             // Rate control

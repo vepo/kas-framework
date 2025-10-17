@@ -10,9 +10,9 @@ import static dev.vepo.kafka.maestro.adapter.stats.StatsKey.client;
 import static dev.vepo.kafka.maestro.adapter.stats.StatsKey.jvm;
 import static dev.vepo.kafka.maestro.adapter.stats.StatsKey.partition;
 import static dev.vepo.kafka.maestro.adapter.stats.StatsKey.topic;
-import static dev.vepo.kafka.maestro.metrics.MetricsRecorder.recordEvent;
 import static org.apache.kafka.streams.StreamsConfig.NUM_STREAM_THREADS_CONFIG;
 
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,6 +46,7 @@ import dev.vepo.kafka.maestro.adapter.stats.StatsKey;
 import dev.vepo.kafka.maestro.adapter.stats.StatsValues;
 import dev.vepo.kafka.maestro.metrics.BrokerMetricsCollector;
 import dev.vepo.kafka.maestro.metrics.MetricListener;
+import dev.vepo.kafka.maestro.metrics.MetricsRecorder;
 import dev.vepo.kafka.maestro.metrics.PerformanceMetric;
 import dev.vepo.kafka.maestro.metrics.MetricsRecorder.Event;
 
@@ -59,29 +60,18 @@ public class Adapter implements MetricListener, Configurable, StateListener {
     private int maxHistorySize;
     private int minHistorySize;
     private BrokerMetricsCollector clusterMetricsCollector;
+    private MetricsRecorder recorder;
 
     public Adapter() {
         this.maxHistorySize = DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MAX;
         this.minHistorySize = DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN;
-        this.taskExecutor = Executors.newSingleThreadScheduledExecutor(r -> new Thread("Adapter"));
+        this.taskExecutor = Executors.newSingleThreadScheduledExecutor();
         this.metrics = Collections.synchronizedMap(new HashMap<>());
         this.context = new StreamsContext(State.CREATED, ThroughputState.INITIALIZING, ResourcesState.AVAILABLE, metrics, null);
         this.rules = new ArrayList<>();
         this.rules.add(new ThroughputAnalyzerRule());
-        // this.rules = List.of(new ThroughputAnalyzerRule(), 
-        //                      new ThreadAllocationRule(),
-        //                      new AdjustConsumerFetchSizeRule(),
-        //                      new UseCompressionOnProducerRule(),
-        //                      new BatchProducerRule());
-        // this.rules = List.of(new ThroughputAnalyzerRule(), 
-        //                      new ThreadAllocationRule());
-        // this.rules = List.of(new ThroughputAnalyzerRule(), 
-        //                      new AdjustConsumerFetchSizeRule());
-        // this.rules = List.of(new ThroughputAnalyzerRule(),
-        //                      new UseCompressionOnProducerRule());
-        // this.rules = List.of(new ThroughputAnalyzerRule(),
-        //                      new BatchProducerRule());
         this.clusterMetricsCollector = null;
+        this.recorder = null;
     }
 
     @Override
@@ -93,11 +83,19 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         if (Objects.nonNull(clusterMetricsCollector)) {
             clusterMetricsCollector.close();
         }
+
+        if (Objects.nonNull(recorder)) {
+            this.recorder.close();
+        }
     }
 
     @Override
     public void configure(Map<String, ?> props) {
         logger.info("Setting up adapter with {}", props);
+        var statsFolder = props.get("metrics.stats.folder");
+        Objects.requireNonNull(statsFolder, "statsFolder is required!");
+        this.recorder = new MetricsRecorder(Paths.get(statsFolder.toString()));
+
         var configs = new MaestroConfigs(props);
         var configuredRules = configs.getConfiguredInstances(MaestroConfigs.ADAPTER_RULE_CLASSES_CONFIG, AdapterRule.class);
         if (Objects.isNull(configuredRules) || configuredRules.isEmpty()) {
@@ -169,7 +167,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
                     // nothing
                     break;
                 case RUNNING:
-                    recordEvent(Event.CHECK);
+                    recorder.recordEvent(Event.CHECK);
                     var changes = new RequiredChanges();
                     logger.info("""
                                 Evaluating adapting rules...
@@ -199,10 +197,10 @@ public class Adapter implements MetricListener, Configurable, StateListener {
                             var props = new Properties();
                             props.putAll(originalConfigs);
                             context.instance().restart(props);
-                            recordEvent(Event.RESTART, props);
+                            recorder.recordEvent(Event.RESTART, props);
                         } else if (changes.shouldIncreaseThreads()) {
                             context.instance().addNewThreads(changes.numThreads());
-                            recordEvent(Event.APPLY, Map.of(NUM_STREAM_THREADS_CONFIG, changes.numThreads()));
+                            recorder.recordEvent(Event.APPLY, Map.of(NUM_STREAM_THREADS_CONFIG, changes.numThreads()));
                         }
                     }
                     break;

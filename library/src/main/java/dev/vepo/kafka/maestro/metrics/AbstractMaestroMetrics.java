@@ -91,14 +91,14 @@ public abstract class AbstractMaestroMetrics implements MetricsReporter {
 
     @Override
     public void configure(Map<String, ?> configs) {
-        logger.info("Setup metrics! class={}, configs={}", getClass(), configs);
+        logger.debug("Setup metrics! class={}, configs={}", getClass(), configs);
         var mConfigs = new MaestroConfigs(configs);
         var clientConfig = mConfigs.getString(CommonClientConfigs.CLIENT_ID_CONFIG);
         // do not collect for admin!
         if (!clientConfig.endsWith("-admin")) {
             var frequencyInMs = mConfigs.getLong(MaestroConfigs.MAESTRO_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG);
             if (Objects.isNull(executor)) {
-                executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "Metric Collector %s - %s".formatted(getClass(), configs.get(CommonClientConfigs.CLIENT_ID_CONFIG))));
+                executor = Executors.newSingleThreadScheduledExecutor();
             }
             mainCollector = executor.scheduleAtFixedRate(this::collectMainMetrics, frequencyInMs, frequencyInMs, TimeUnit.MILLISECONDS);
             if (isMainThread(configs)) {

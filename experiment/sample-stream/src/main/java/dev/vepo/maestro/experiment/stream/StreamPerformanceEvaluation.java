@@ -17,17 +17,16 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.math3.util.Pair;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.RemoveMembersFromConsumerGroupOptions;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.Serdes.StringSerde;
@@ -42,7 +41,6 @@ import org.apache.kafka.streams.kstream.Repartitioned;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
-import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.WindowStore;
 import org.slf4j.Logger;
@@ -59,7 +57,6 @@ import dev.vepo.kafka.maestro.adapter.rules.ThreadAllocationRule;
 import dev.vepo.kafka.maestro.adapter.rules.UseCompressionOnProducerRule;
 import dev.vepo.kafka.maestro.metrics.PerformanceMetricsCollector;
 import dev.vepo.maestro.experiment.stream.CommandClient.Command;
-import dev.vepo.maestro.experiment.stream.StreamPerformanceEvaluation.TopologyDefinition;
 import dev.vepo.maestro.experiment.stream.model.FareStats;
 import dev.vepo.maestro.experiment.stream.model.PassengerStats;
 import dev.vepo.maestro.experiment.stream.model.TaxiTrip;
@@ -77,97 +74,173 @@ public class StreamPerformanceEvaluation implements Runnable {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(StreamPerformanceEvaluation.class);
-    private static final int TEST_DURATION_IN_MINUTES = 2;
+    private static final int TEST_DURATION_IN_MINUTES = 45;
+    private static final CommandClient COMMAND = new CommandClient();
+    private static final String[] TOPICS = new String[] { "raw-output",
+                                                          "raw-input",
+                                                          "raw-by-hash-repartition",
+                                                          "nyc-taxi-dashboard-fare",
+                                                          "nyc-taxi-dashboard-tips",
+                                                          "nyc-taxi-dashboard-passengers",
+                                                          "nyc-taxi-trips",
+                                                          "nyc-taxi-trips-by-pu-location-id-repartition",
+                                                          "nyc-taxi-trips-by-do-location-id-repartition",
+                                                          "trips-per-hour",
+                                                          "trips-per-hour-repartition",
+                                                          "%app-id%-raw-by-hash-repartition",
+                                                          "%app-id%-raw-unique-store-changelog",
+                                                          "%app-id%-nyc-taxi-stats-store-changelog",
+                                                          "%app-id%-nyc-taxi-trips-by-pu-location-id-repartition",
+                                                          "%app-id%-nyc-taxi-trips-by-do-location-id-repartition",
+                                                          "%app-id%-trips-per-hour-repartition" };
+    private record Execution(String appId,
+                             String useCase,
+                             String useCaseArgument,
+                             Type type,
+                             TopologyDefinition topology,
+                             List<Class<? extends AdapterRule>> rules) {
+        private Execution(String appId,
+                             String useCase,
+                             String useCaseArgument,
+                             Type type,
+                             TopologyDefinition topology) {
+            this(appId, useCase, useCaseArgument, type,topology, null);
+        }
+
+        public void exec() {
+            try {
+                createTopics();
+                COMMAND.sendCommand(Command.START, useCase, useCaseArgument);
+                var evaluation = new StreamPerformanceEvaluation(type, appId, topology, rules);
+                evaluation.run();
+                COMMAND.sendCommand(Command.STOP);
+            } catch (Exception ex) {
+                logger.error("Error executing test case: {}", this, ex);
+                try {
+                    COMMAND.sendCommand(Command.STOP);
+                    COMMAND.sendCommand(Command.DONE);
+                } catch (Exception ex2) {
+                    logger.error("Error stopping producer!", ex2);
+                }
+                System.exit(-1);
+            }
+        }
+
+        private void createTopics() throws InterruptedException, ExecutionException {
+            var props = new Properties();
+            props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-0:9092,kafka-1:9094,kafka-2:9096");
+
+            try (var adminClient = AdminClient.create(props)) {
+                var existingConsumerGroups = adminClient.listConsumerGroups()
+                                                        .all()
+                                                        .get()
+                                                        .stream()
+                                                        .map(ConsumerGroupListing::groupId)
+                                                        .toList();
+
+                if (!existingConsumerGroups.isEmpty()) {
+                    // Try to remove members from groups first
+                    existingConsumerGroups.forEach(groupId -> {
+                        try {
+                            logger.info("Removing members from consumer group: {}", groupId);
+                            var removeResult = adminClient.removeMembersFromConsumerGroup(groupId, new RemoveMembersFromConsumerGroupOptions()).all().get();
+                            // This is a simplified approach - you might need to handle each group individually
+                            logger.info("Members removed! {}", removeResult);
+                        } catch (Exception e) {
+                            logger.warn("Could not remove members from consumer groups: {}", e.getMessage());
+                        }
+                    });
+                    var deletedGroups = adminClient.deleteConsumerGroups(existingConsumerGroups);
+                    deletedGroups.all().get();
+                    logger.info("Consumer groups deleted! groups={}", existingConsumerGroups);
+                }
+                var existingTopicsNames = adminClient.listTopics()
+                                                     .listings().get().stream()
+                                                     .map(TopicListing::name)
+                                                     .collect(Collectors.toList());
+                if (!existingTopicsNames.isEmpty()) {
+                    logger.info("Deleting topics: {}", existingTopicsNames);
+
+                    // Delete all topics
+                    DeleteTopicsResult deleteResult = adminClient.deleteTopics(existingTopicsNames);
+                    deleteResult.all().get(); // Wait for deletion to complete
+
+                    logger.info("Successfully deleted topics. {}", existingTopicsNames);
+                }
+                // Create topics
+                var topicNames = Stream.of(TOPICS)
+                                       .map(t -> t.replace("%app-id%", appId))
+                                       .map(topic -> new NewTopic(topic, 12, (short) 1))
+                                       .toList();
+                var result = adminClient.createTopics(topicNames);
+
+                // Wait for completion and get results
+                result.all().get();
+                logger.info("All topics created successfully");
+            }
+        }
+    }
 
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
         Thread.sleep(5000);
-        var client = new CommandClient();
-        client.startConnection("producer", 7777);
-        var topics = new String[] { "raw-output",
-                                    "raw-input",
-                                    "raw-by-hash-repartition",
-                                    "nyc-taxi-dashboard-fare",
-                                    "nyc-taxi-dashboard-tips",
-                                    "nyc-taxi-dashboard-passengers",
-                                    "nyc-taxi-trips",
-                                    "nyc-taxi-trips-by-pu-location-id-repartition",
-                                    "nyc-taxi-trips-by-do-location-id-repartition",
-                                    "trips-per-hour",
-                                    "trips-per-hour-repartition",
-                                    "%app-id%-raw-by-hash-repartition",
-                                    "%app-id%-raw-unique-store-changelog",
-                                    "%app-id%-nyc-taxi-stats-store-changelog",
-                                    "%app-id%-nyc-taxi-trips-by-pu-location-id-repartition",
-                                    "%app-id%-nyc-taxi-trips-by-do-location-id-repartition",
-                                    "%app-id%-trips-per-hour-repartition" };
-        Stream.of("warmup", "baseline")
-              .forEachOrdered(test -> {
-                    try {
-                        createTopics(test, topics);
-                        client.sendCommand(Command.START);
-                        var evaluation = new StreamPerformanceEvaluation(Type.VANILLA, test, TopologyDefinition.STATS);
-                        evaluation.run();
-                        client.sendCommand(Command.STOP);
-                    } catch (Exception e) {
-                        logger.error("Error runnint test!", e);
-                        System.exit(-1);
-                    }
-                });
-        BiConsumer<String, List<Class<? extends AdapterRule>>> executer = (id, rules) -> {
-            try {
-                createTopics(id, topics);
-                client.sendCommand(Command.START);
-                var evaluation = new StreamPerformanceEvaluation(Type.MAESTRO, id, TopologyDefinition.STATS, rules);
-                evaluation.run();
-                client.sendCommand(Command.STOP);
-            } catch (Exception e) {
-                logger.error("Error runnint test!", e);
-                System.exit(-1);
-            }
-        };
-        executer.accept("all-stats", List.of(ThreadAllocationRule.class,
-                                               AdjustConsumerFetchSizeRule.class,
-                                               UseCompressionOnProducerRule.class,
-                                               BatchProducerRule.class));
-        executer.accept("tread-allocation", List.of(ThreadAllocationRule.class));
-        client.sendCommand(Command.DONE);
-    }
-
-    private static void createTopics(String appId, String... topics) throws InterruptedException, ExecutionException {
-        var props = new Properties();
-        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-0:9092,kafka-1:9094,kafka-2:9096");
-
-        try (var adminClient = AdminClient.create(props)) {
-            var listTopicsResult = adminClient.listTopics();
-            var existingTopics = listTopicsResult.listings().get();
-
-            // Extract topic names (excluding internal topics if desired)
-            var existingTopicsNames = existingTopics.stream()
-                                                    .map(TopicListing::name)
-                                                    // Uncomment the next line to exclude internal topics
-                                                    // .filter(name -> !name.startsWith("_"))
-                                                    .collect(Collectors.toList());
-
-            if (!existingTopicsNames.isEmpty()) {
-
-                logger.info("Deleting topics: {}", existingTopicsNames);
-
-                // Delete all topics
-                DeleteTopicsResult deleteResult = adminClient.deleteTopics(existingTopicsNames);
-                deleteResult.all().get(); // Wait for deletion to complete
-
-                logger.info("Successfully deleted {} topics.", existingTopicsNames.size());
-            }
-            // Create topics
-            var result = adminClient.createTopics(Stream.of(topics)
-                                                        .map(t -> t.replace("%app-id%", appId))
-                                                        .map(topic -> new NewTopic(topic, 12, (short) 2))
-                                                        .toList());
-
-            // Wait for completion and get results
-            result.all().get();
-            logger.info("All topics created successfully");
-        }
+        COMMAND.startConnection("producer", 7777);
+        // base stats
+        Stream.of(new Execution("stats-warmup", "STATS", "", Type.VANILLA, TopologyDefinition.STATS),
+                  new Execution("stats-baseline", "STATS", "", Type.VANILLA, TopologyDefinition.STATS),
+                  new Execution("stats-all", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(ThreadAllocationRule.class,
+                                                                                                                                        AdjustConsumerFetchSizeRule.class,
+                                                                                                                                        UseCompressionOnProducerRule.class,
+                                                                                                                                        BatchProducerRule.class)),
+                  new Execution("stats-thread-allocation", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(ThreadAllocationRule.class)),
+                  new Execution("stats-fetch-size", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(AdjustConsumerFetchSizeRule.class)),
+                  new Execution("stats-compression", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(UseCompressionOnProducerRule.class)),
+                  new Execution("stats-batch", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(BatchProducerRule.class)),
+                  // Stats with more topics
+                  new Execution("stats-plus-warmup", "STATS", "", Type.VANILLA, TopologyDefinition.STATS_MORE_OUTPUT),
+                  new Execution("stats-plus-baseline", "STATS", "", Type.VANILLA, TopologyDefinition.STATS_MORE_OUTPUT),
+                  new Execution("stats-plus-all", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(ThreadAllocationRule.class,
+                                                                                                                           AdjustConsumerFetchSizeRule.class,
+                                                                                                                           UseCompressionOnProducerRule.class,
+                                                                                                                           BatchProducerRule.class)),
+                  new Execution("stats-plus-thread-allocation", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(ThreadAllocationRule.class)),
+                  new Execution("stats-plus-fetch-size", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(AdjustConsumerFetchSizeRule.class)),
+                  new Execution("stats-plus-compression", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(UseCompressionOnProducerRule.class)),
+                  new Execution("stats-plus-batch", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(BatchProducerRule.class)),
+                  // RAW - 100
+                  new Execution("raw-100-warmup", "RAW", "100", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-100-baseline", "RAW", "100", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-100-all", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class,
+                                                                                                                                        AdjustConsumerFetchSizeRule.class,
+                                                                                                                                        UseCompressionOnProducerRule.class,
+                                                                                                                                        BatchProducerRule.class)),
+                  new Execution("raw-100-thread-allocation", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class)),
+                  new Execution("raw-100-fetch-size", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(AdjustConsumerFetchSizeRule.class)),
+                  new Execution("raw-100-compression", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(UseCompressionOnProducerRule.class)),
+                  new Execution("raw-100-batch", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(BatchProducerRule.class)),
+                  // RAW - 250
+                  new Execution("raw-250-warmup", "RAW", "250", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-250-baseline", "RAW", "250", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-250-all", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class,
+                                                                                                                                        AdjustConsumerFetchSizeRule.class,
+                                                                                                                                        UseCompressionOnProducerRule.class,
+                                                                                                                                        BatchProducerRule.class)),
+                  new Execution("raw-250-thread-allocation", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class)),
+                  new Execution("raw-250-fetch-size", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(AdjustConsumerFetchSizeRule.class)),
+                  new Execution("raw-250-compression", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(UseCompressionOnProducerRule.class)),
+                  new Execution("raw-250-batch", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(BatchProducerRule.class)),
+                  // RAW - 500
+                  new Execution("raw-500-warmup", "RAW", "500", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-500-baseline", "RAW", "500", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-500-all", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class,
+                                                                                                                                        AdjustConsumerFetchSizeRule.class,
+                                                                                                                                        UseCompressionOnProducerRule.class,
+                                                                                                                                        BatchProducerRule.class)),
+                  new Execution("raw-500-thread-allocation", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class)),
+                  new Execution("raw-500-fetch-size", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(AdjustConsumerFetchSizeRule.class)),
+                  new Execution("raw-500-compression", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(UseCompressionOnProducerRule.class)),
+                  new Execution("raw-500-batch", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(BatchProducerRule.class)))
+              .forEachOrdered(Execution::exec);
+        COMMAND.sendCommand(Command.DONE);
     }
 
     private final Type type;
@@ -184,7 +257,6 @@ public class StreamPerformanceEvaluation implements Runnable {
         this.testId = testId;
         this.topology = topology;
         this.adapterRules = adapterRules;
-        System.setProperty("STATS_FOLDER", Paths.get(System.getenv("STATS_FOLDER"), testId).toAbsolutePath().toString());
     }
 
     @Override
@@ -205,13 +277,14 @@ public class StreamPerformanceEvaluation implements Runnable {
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, StringSerde.class);
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 2);
+        props.put("metrics.stats.folder", Paths.get(System.getenv("STATS_FOLDER"), testId).toAbsolutePath().toString());
         props.put(StreamsConfig.STATE_DIR_CONFIG, "/opt/" + testId + "/state");
         if (Objects.nonNull(adapterRules)) {
             props.put(MaestroConfigs.ADAPTER_RULE_CLASSES_CONFIG, adapterRules);
         }
         props.put(StreamsConfig.METRIC_REPORTER_CLASSES_CONFIG, PerformanceMetricsCollector.class.getName());
         try (var maestroStream = create(this::buildTopology, props);
-                var taskExecutor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "Main"))) {
+                var taskExecutor = Executors.newSingleThreadScheduledExecutor()) {
             var countDown = new CountDownLatch(1);
 
             taskExecutor.schedule(() -> {
@@ -357,32 +430,8 @@ public class StreamPerformanceEvaluation implements Runnable {
         }
     }
 
-    private class UniqueRawProcessor implements Processor<String, byte[], String, byte[]> {
-        private ProcessorContext<String, byte[]> context;
-        private KeyValueStore<String, Boolean> store;
-
-        @Override
-        public void init(ProcessorContext<String, byte[]> context) {
-            this.context = context;
-            store = context.getStateStore(Topics.RAW_UNIQUE_STORE.topicName());
-        }
-        @Override
-        public void process(Record<String, byte[]> record) {
-            if(store.get(record.key()) == null) {
-                store.put(record.key(), true);
-            } else {
-                context.forward(record);
-            }
-        }
-    }
-
     private Topology buildPassthroughTopology() {
         var builder = new StreamsBuilder();
-        var statsStoreBuilder = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(Topics.RAW_UNIQUE_STORE.topicName()),
-                                                          Serdes.String(),
-                                                          Serdes.Boolean())
-                                      .withCachingEnabled();
-        builder.addStateStore(statsStoreBuilder);
         builder.stream(Topics.RAW_DATA_INPUT.topicName(), Consumed.with(Serdes.ByteArray(), Serdes.ByteArray()))
                .mapValues(input -> {
                      if (input == null) {
@@ -393,13 +442,11 @@ public class StreamPerformanceEvaluation implements Runnable {
                         return resizeTo64x64(input);
                     } catch (Exception e) {
                         // Log error and return empty image
-                        System.err.println("Error resizing image: " + e.getMessage());
+                        logger.error("Error resizing image!", e);
                         return createEmpty64x64Image();
                     }
                 })
                .selectKey((key, value) -> md5Hash(value))
-            //    .repartition(Repartitioned.with(Serdes.String(), Serdes.ByteArray()).withName(Topics.RAW_BY_HASH.topicName()))
-            //    .process(UniqueRawProcessor::new, Topics.RAW_UNIQUE_STORE.topicName())
                .to(Topics.RAW_DATA_OUTPUT.topicName(), Produced.with(Serdes.String(), Serdes.ByteArray()));
         return builder.build();
     }

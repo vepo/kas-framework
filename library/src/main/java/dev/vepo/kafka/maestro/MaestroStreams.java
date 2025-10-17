@@ -37,8 +37,7 @@ public class MaestroStreams implements Streams {
 
     private static Properties setup(Properties props) {
         if (props.containsKey(METRIC_REPORTER_CLASSES_CONFIG)) {
-            props.put(METRIC_REPORTER_CLASSES_CONFIG,
-                    props.get(METRIC_REPORTER_CLASSES_CONFIG) + "," + StreamsHealthyMetrics.class.getName());
+            props.put(METRIC_REPORTER_CLASSES_CONFIG, props.get(METRIC_REPORTER_CLASSES_CONFIG) + "," + StreamsHealthyMetrics.class.getName());
         } else {
             props.put(METRIC_REPORTER_CLASSES_CONFIG, StreamsHealthyMetrics.class.getName());
         }

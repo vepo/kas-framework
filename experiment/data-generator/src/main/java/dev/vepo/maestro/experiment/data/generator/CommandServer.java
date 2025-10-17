@@ -16,7 +16,7 @@ public class CommandServer {
 
     @FunctionalInterface
     public interface Callback {
-        void command(Command command);
+        void command(Command command, String type, String arguments);
     }
 
     private static final Logger logger = LoggerFactory.getLogger(CommandServer.class);
@@ -78,17 +78,34 @@ public class CommandServer {
     }
     
     private String processCommand(String command) {
+        String type = "";
+        String arguments = "";
+        if (command.contains(":")) {
+            String[] parts = command.split(":");
+            command = parts[0];
+            if (parts.length >= 2) {
+                if (parts[1].contains(",")) {
+                    String[] parameters = parts[1].split(",");
+                    type = parameters[0];
+                    if (parameters.length > 1) {
+                        arguments = parameters[1];
+                    }
+                } else {
+                    type = parts[1];
+                }
+            } 
+        }
         return switch (command.toUpperCase()) {
             case "START" -> {
-                callback.command(Command.START);
+                callback.command(Command.START, type, arguments);
                 yield "SERVER: Processing started - Task initiated";
             }
             case "STOP" -> {
-                callback.command(Command.STOP);
+                callback.command(Command.STOP, type, arguments);
                 yield "SERVER: Processing stopped - Task paused";
             }
             case "DONE" -> {
-                callback.command(Command.DONE);
+                callback.command(Command.DONE, type, arguments);
                 running.set(false);
                 yield "SERVER: Session completed - Goodbye!";
             }

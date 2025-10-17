@@ -25,6 +25,11 @@ public class CommandClient {
         logger.info(in.readLine());
     }
     
+    public String sendCommand(Command command, String type, String arguments) throws IOException {
+        out.println(String.format("%s:%s,%s", command.name(), type, arguments));
+        return in.readLine();
+    }
+
     public String sendCommand(Command command) throws IOException {
         out.println(command.name());
         return in.readLine();

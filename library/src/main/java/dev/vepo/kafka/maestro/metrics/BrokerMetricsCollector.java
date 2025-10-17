@@ -43,7 +43,7 @@ public class BrokerMetricsCollector implements Configurable, Closeable {
         this.topics = topics;
         this.topicsDone = this.brokerDone = false;
         this.refClient = new AtomicReference<>();
-        this.executor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "Broker Metrics Collector"));
+        this.executor = Executors.newSingleThreadScheduledExecutor();
     }
 
     @Override

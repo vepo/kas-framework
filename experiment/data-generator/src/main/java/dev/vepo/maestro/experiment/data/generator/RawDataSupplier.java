@@ -6,9 +6,9 @@ public class RawDataSupplier {
     private final Random random;
     private final byte[] data;
     
-    public RawDataSupplier() {
+    public RawDataSupplier(int messageSize) {
         this.random = new Random();
-        this.data = new byte[Integer.parseInt(System.getenv("MESSAGE_SIZE"))];
+        this.data = new byte[messageSize];
     }
     
     public byte[] next() {

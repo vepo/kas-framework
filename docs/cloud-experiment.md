@@ -20,8 +20,8 @@ sudo mount /dev/vdb /mnt/docker-data
 
 ### Create test environment
 cd maestro
-./script/start-kafka
-./script/create-topics
+./scripts/start-kafka
+./scripts/create-topics
 
 ## Streams
 curl -s "https://get.sdkman.io" | bash

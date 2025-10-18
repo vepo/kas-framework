@@ -8,11 +8,11 @@ services:
     deploy:
       resources:  
         limits:
-          cpus: '2'
-          memory: 2gb
+          cpus: '1.5'
+          memory: 1.5gb
         reservations:
           cpus: '0.5'
-          memory: 2gb
+          memory: 1.5gb
     environment:
       KAFKA_CLUSTER_ID: N0UOwvnVR7ORiwq0M4do9w
       KAFKA_BROKER_ID: 1
@@ -36,11 +36,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 2gb
+          cpus: '1.5'
+          memory: 1.5gb
         reservations:
           cpus: '0.5'
-          memory: 2gb
+          memory: 1.5gb
     environment:
       KAFKA_CLUSTER_ID: N0UOwvnVR7ORiwq0M4do9w
       KAFKA_BROKER_ID: 2
@@ -64,11 +64,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 2gb
+          cpus: '1.5'
+          memory: 1.5gb
         reservations:
           cpus: '0.5'
-          memory: 2gb
+          memory: 1.5gb
     environment:
       KAFKA_CLUSTER_ID: N0UOwvnVR7ORiwq0M4do9w
       KAFKA_BROKER_ID: 3

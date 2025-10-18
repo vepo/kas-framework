@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.Configurable;
@@ -61,11 +62,13 @@ public class Adapter implements MetricListener, Configurable, StateListener {
     private int minHistorySize;
     private BrokerMetricsCollector clusterMetricsCollector;
     private MetricsRecorder recorder;
+    private ScheduledFuture<?> verifyTask;
 
     public Adapter() {
         this.maxHistorySize = DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MAX;
         this.minHistorySize = DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN;
         this.taskExecutor = Executors.newSingleThreadScheduledExecutor();
+        this.verifyTask = null;
         this.metrics = Collections.synchronizedMap(new HashMap<>());
         this.context = new StreamsContext(State.CREATED, ThroughputState.INITIALIZING, ResourcesState.AVAILABLE, metrics, null);
         this.rules = new ArrayList<>();
@@ -76,6 +79,10 @@ public class Adapter implements MetricListener, Configurable, StateListener {
 
     @Override
     public void close() throws Exception {
+        if (Objects.nonNull(verifyTask)) {
+            this.verifyTask.cancel(true);
+        }
+        
         taskExecutor.shutdown();
         if (!taskExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
             taskExecutor.shutdownNow();
@@ -111,7 +118,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         this.minHistorySize = configs.getInt(MAESTRO_ADAPTER_HISTORY_SIZE_MIN_CONFIG);
         var frequencyMs = configs.getLong(MAESTRO_ADAPTER_FREQUENCY_MS_CONFIG);
         logger.info("Adapter configured! minHistory={} maxHistory={} frequency={}", minHistorySize, maxHistorySize, frequencyMs);
-        taskExecutor.scheduleAtFixedRate(this::verify, frequencyMs, frequencyMs, TimeUnit.MILLISECONDS);       
+        verifyTask = taskExecutor.scheduleAtFixedRate(this::verify, frequencyMs, frequencyMs, TimeUnit.MILLISECONDS);       
     }
 
     public void setup(Streams streams) {

@@ -74,7 +74,7 @@ public class StreamPerformanceEvaluation implements Runnable {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(StreamPerformanceEvaluation.class);
-    private static final int TEST_DURATION_IN_MINUTES = 45;
+    private static final int TEST_DURATION_IN_MINUTES = 40;
     private static final CommandClient COMMAND = new CommandClient();
     private static final String[] TOPICS = new String[] { "raw-output",
                                                           "raw-input",
@@ -114,6 +114,7 @@ public class StreamPerformanceEvaluation implements Runnable {
                 var evaluation = new StreamPerformanceEvaluation(type, appId, topology, rules);
                 evaluation.run();
                 COMMAND.sendCommand(Command.STOP);
+                sleep(Duration.ofMinutes(1));
             } catch (Exception ex) {
                 logger.error("Error executing test case: {}", this, ex);
                 try {
@@ -182,7 +183,7 @@ public class StreamPerformanceEvaluation implements Runnable {
     }
 
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
-        Thread.sleep(5000);
+        sleep(Duration.ofSeconds(5));
         COMMAND.startConnection("producer", 7777);
         // base stats
         Stream.of(new Execution("stats-warmup", "STATS", "", Type.VANILLA, TopologyDefinition.STATS),
@@ -262,11 +263,7 @@ public class StreamPerformanceEvaluation implements Runnable {
     @Override
     public void run() {
         logger.info("Waiting lag grow.... 1 minutes");
-        try {
-            Thread.sleep(Duration.ofMinutes(1).toMillis());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        sleep(Duration.ofMinutes(1));
         logger.info("Starting Streamer");
 
         var stateDir = Paths.get("/opt", testId, "state");
@@ -315,6 +312,14 @@ public class StreamPerformanceEvaluation implements Runnable {
             }
         }
         folder.delete();
+    }
+
+    private static void sleep(Duration timeout) {
+        try {
+            Thread.sleep(timeout.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private Streams create(Supplier<Topology> topologyProvider, Properties props) {

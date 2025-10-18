@@ -72,16 +72,7 @@ public class MaestroStreams implements Streams {
 
     @Override
     public void close() {
-        this.innerStreams.close();
-        this.threadPool.shutdown();
-        var adapter = this.originalProps.get(MAESTRO_ADAPTER_INSTANCE_CONFIG);
-        if (Objects.nonNull(adapter) && adapter instanceof AutoCloseable adapterResource) {
-            try {
-                adapterResource.close();
-            } catch (Exception e) {
-                logger.warn("Could not close adapter", e);
-            }
-        }
+        this.close(new CloseOptions());
     }
 
     @Override
@@ -106,7 +97,16 @@ public class MaestroStreams implements Streams {
 
     @Override
     public void close(CloseOptions options) {
-        this.innerStreams.close(options);
+        var adapter = this.originalProps.get(MAESTRO_ADAPTER_INSTANCE_CONFIG);
+        if (Objects.nonNull(adapter) && adapter instanceof AutoCloseable adapterResource) {
+            try {
+                adapterResource.close();
+            } catch (Exception e) {
+                logger.warn("Could not close adapter", e);
+            }
+        }
+        this.innerStreams.close();
+        this.threadPool.shutdown();
     }
 
     @Override

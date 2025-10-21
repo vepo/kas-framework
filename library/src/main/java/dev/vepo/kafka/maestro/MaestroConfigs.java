@@ -41,11 +41,11 @@ public class MaestroConfigs extends AbstractConfig {
     public static final String ADAPTER_RULE_CLASSES_DOC = "A list of classes to use as adapter rules. Implementing the <code>dev.vepo.kafka.maestro.adapter.rules.AdapterRule</code> interface allows plugging in classes that will be used to evaluate adapter rules.";
 
 
-    public static final Duration DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY = Duration.ofMinutes(5);
+    public static final Duration DEFAULT_MAESTRO_ADAPTER_TICK_FREQUENCY = Duration.ofMinutes(2);
     public static final Duration DEFAULT_METRICS_COLLECTION_FREQUENCY = Duration.ofSeconds(1);
     public static final int DEFAULT_NUM_STREAM_THREADS = 2;
     public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MAX = (int) Duration.ofMinutes(60).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY);
-    public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN = (int) Duration.ofMinutes(10).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY) - 1;
+    public static final int DEFAULT_MAESTRO_ADAPTER_HISTORY_SIZE_MIN = (int) Duration.ofMinutes(5).dividedBy(DEFAULT_METRICS_COLLECTION_FREQUENCY) - 1;
 
     private static final ConfigDef CONFIG = new ConfigDef().define(CLIENT_ID_CONFIG, Type.STRING, "", Importance.MEDIUM, CommonClientConfigs.CLIENT_ID_DOC)
                                                            .define(ADAPTER_RULE_CLASSES_CONFIG,

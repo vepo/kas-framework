@@ -140,7 +140,7 @@ public class MaestroStreams implements Streams {
         this.threadPool.submit(() -> {
             logger.info("Restarting Streams asynchronously... props={}", props);
 
-            this.innerStreams.close(new CloseOptions().timeout(Duration.ofMinutes(1)).leaveGroup(false));
+            this.innerStreams.close(new CloseOptions().timeout(Duration.ofMinutes(3)).leaveGroup(false));
 
             if (this.innerStreams.state() != KafkaStreams.State.NOT_RUNNING
                     && this.innerStreams.state() != KafkaStreams.State.ERROR) {

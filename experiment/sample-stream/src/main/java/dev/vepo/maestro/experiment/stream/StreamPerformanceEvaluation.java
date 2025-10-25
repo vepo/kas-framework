@@ -28,6 +28,7 @@ import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.RemoveMembersFromConsumerGroupOptions;
 import org.apache.kafka.clients.admin.TopicListing;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.Serdes.StringSerde;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -186,7 +187,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         sleep(Duration.ofSeconds(5));
         COMMAND.startConnection("producer", 7777);
         // base stats
-        Stream.of(/*new Execution("stats-simple-warmup", "STATS", "", Type.VANILLA, TopologyDefinition.STATS),
+        Stream.of(new Execution("stats-simple-warmup", "STATS", "", Type.VANILLA, TopologyDefinition.STATS),
                   new Execution("stats-simple-baseline", "STATS", "", Type.VANILLA, TopologyDefinition.STATS),
                   new Execution("stats-simple-all", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(ThreadAllocationRule.class,
                                                                                                                  AdjustConsumerFetchSizeRule.class,
@@ -195,7 +196,7 @@ public class StreamPerformanceEvaluation implements Runnable {
                   new Execution("stats-simple-thread-allocation", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(ThreadAllocationRule.class)),
                   new Execution("stats-simple-fetch-size", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(AdjustConsumerFetchSizeRule.class)),
                   new Execution("stats-simple-compression", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("stats-simple-batch", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(BatchProducerRule.class)))*/
+                  new Execution("stats-simple-batch", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS, List.of(BatchProducerRule.class)),
                   // Stats with more topics
                   new Execution("stats-plus-warmup", "STATS", "", Type.VANILLA, TopologyDefinition.STATS_MORE_OUTPUT),
                   new Execution("stats-plus-baseline", "STATS", "", Type.VANILLA, TopologyDefinition.STATS_MORE_OUTPUT),
@@ -206,40 +207,40 @@ public class StreamPerformanceEvaluation implements Runnable {
                   new Execution("stats-plus-thread-allocation", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(ThreadAllocationRule.class)),
                   new Execution("stats-plus-fetch-size", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(AdjustConsumerFetchSizeRule.class)),
                   new Execution("stats-plus-compression", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("stats-plus-batch", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(BatchProducerRule.class)))
-                //   // RAW - 100
-                //   new Execution("raw-100-warmup", "RAW", "100", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
-                //   new Execution("raw-100-baseline", "RAW", "100", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
-                //   new Execution("raw-100-all", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class,
-                //                                                                                                    AdjustConsumerFetchSizeRule.class,
-                //                                                                                                    UseCompressionOnProducerRule.class,
-                //                                                                                                    BatchProducerRule.class)),
-                //   new Execution("raw-100-thread-allocation", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class)),
-                //   new Execution("raw-100-fetch-size", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(AdjustConsumerFetchSizeRule.class)),
-                //   new Execution("raw-100-compression", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(UseCompressionOnProducerRule.class)),
-                //   new Execution("raw-100-batch", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(BatchProducerRule.class)),
-                //   // RAW - 250
-                //   new Execution("raw-250-warmup", "RAW", "250", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
-                //   new Execution("raw-250-baseline", "RAW", "250", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
-                //   new Execution("raw-250-all", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class,
-                //                                                                                                    AdjustConsumerFetchSizeRule.class,
-                //                                                                                                    UseCompressionOnProducerRule.class,
-                //                                                                                                    BatchProducerRule.class)),
-                //   new Execution("raw-250-thread-allocation", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class)),
-                //   new Execution("raw-250-fetch-size", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(AdjustConsumerFetchSizeRule.class)),
-                //   new Execution("raw-250-compression", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(UseCompressionOnProducerRule.class)),
-                //   new Execution("raw-250-batch", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(BatchProducerRule.class)),
-                //   // RAW - 500
-                //   new Execution("raw-500-warmup", "RAW", "500", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
-                //   new Execution("raw-500-baseline", "RAW", "500", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
-                //   new Execution("raw-500-all", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class,
-                //                                                                                                    AdjustConsumerFetchSizeRule.class,
-                //                                                                                                    UseCompressionOnProducerRule.class,
-                //                                                                                                    BatchProducerRule.class)),
-                //   new Execution("raw-500-thread-allocation", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class)),
-                //   new Execution("raw-500-fetch-size", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(AdjustConsumerFetchSizeRule.class)),
-                //   new Execution("raw-500-compression", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(UseCompressionOnProducerRule.class)),
-                //   new Execution("raw-500-batch", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(BatchProducerRule.class)))
+                  new Execution("stats-plus-batch", "STATS", "", Type.MAESTRO, TopologyDefinition.STATS_MORE_OUTPUT, List.of(BatchProducerRule.class)),
+                  // RAW - 100
+                  new Execution("raw-100-warmup", "RAW", "100", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-100-baseline", "RAW", "100", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-100-all", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class,
+                                                                                                                   AdjustConsumerFetchSizeRule.class,
+                                                                                                                   UseCompressionOnProducerRule.class,
+                                                                                                                   BatchProducerRule.class)),
+                  new Execution("raw-100-thread-allocation", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class)),
+                  new Execution("raw-100-fetch-size", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(AdjustConsumerFetchSizeRule.class)),
+                  new Execution("raw-100-compression", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(UseCompressionOnProducerRule.class)),
+                  new Execution("raw-100-batch", "RAW", "100", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(BatchProducerRule.class)),
+                  // RAW - 250
+                  new Execution("raw-250-warmup", "RAW", "250", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-250-baseline", "RAW", "250", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-250-all", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class,
+                                                                                                                   AdjustConsumerFetchSizeRule.class,
+                                                                                                                   UseCompressionOnProducerRule.class,
+                                                                                                                   BatchProducerRule.class)),
+                  new Execution("raw-250-thread-allocation", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class)),
+                  new Execution("raw-250-fetch-size", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(AdjustConsumerFetchSizeRule.class)),
+                  new Execution("raw-250-compression", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(UseCompressionOnProducerRule.class)),
+                  new Execution("raw-250-batch", "RAW", "250", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(BatchProducerRule.class)),
+                  // RAW - 500
+                  new Execution("raw-500-warmup", "RAW", "500", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-500-baseline", "RAW", "500", Type.VANILLA, TopologyDefinition.PASSTHROUGH),
+                  new Execution("raw-500-all", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class,
+                                                                                                                   AdjustConsumerFetchSizeRule.class,
+                                                                                                                   UseCompressionOnProducerRule.class,
+                                                                                                                   BatchProducerRule.class)),
+                  new Execution("raw-500-thread-allocation", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(ThreadAllocationRule.class)),
+                  new Execution("raw-500-fetch-size", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(AdjustConsumerFetchSizeRule.class)),
+                  new Execution("raw-500-compression", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(UseCompressionOnProducerRule.class)),
+                  new Execution("raw-500-batch", "RAW", "500", Type.MAESTRO, TopologyDefinition.PASSTHROUGH, List.of(BatchProducerRule.class)))
               .forEachOrdered(Execution::exec);
         COMMAND.sendCommand(Command.DONE);
     }
@@ -273,6 +274,9 @@ public class StreamPerformanceEvaluation implements Runnable {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, testId);
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, StringSerde.class);
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
+        props.put(StreamsConfig.ACCEPTABLE_RECOVERY_LAG_CONFIG, Long.MAX_VALUE);
+        props.put(StreamsConfig.REQUEST_TIMEOUT_MS_CONFIG, 40000 * 3); // 3 times
+        props.put(StreamsConfig.producerPrefix(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG), (40000 * 3) + 100); // 3 times
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 2);
         props.put("metrics.stats.folder", Paths.get(System.getenv("STATS_FOLDER"), testId).toAbsolutePath().toString());
         props.put(StreamsConfig.STATE_DIR_CONFIG, "/opt/" + testId + "/state");

@@ -33,9 +33,10 @@ public class BatchProducerRule implements AdapterRule {
 
                     if (deltaLinger > 1.0) { // linger.ms is an integer
                         var defaultLingerMs = context.instance()
-                                .originalConfigs()
-                                .get(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG));
+                                                     .originalConfigs()
+                                                     .get(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG));
                         logger.info("Previous linger.ms={}", defaultLingerMs);
+                        int newLingerValue;
                         if (Objects.nonNull(defaultLingerMs)) {
                             var lingerMs = switch (defaultLingerMs) {
                                                case Integer iValue -> iValue;
@@ -43,10 +44,21 @@ public class BatchProducerRule implements AdapterRule {
                                                case String sValue -> Integer.valueOf(sValue);
                                                default -> 0;
                                            };
-                            changes.useValue(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), (int) (lingerMs + deltaLinger));
+                            newLingerValue = (int) (lingerMs + deltaLinger);
                         } else {
-                            changes.useValue(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), (int) deltaLinger);
+                            newLingerValue = (int) deltaLinger;
                         }
+                        changes.useValue(StreamsConfig.producerPrefix(ProducerConfig.LINGER_MS_CONFIG), newLingerValue);
+                        var requestTimeout = context.instance()
+                                                    .originalConfigs()
+                                                    .get(StreamsConfig.REQUEST_TIMEOUT_MS_CONFIG);
+                        int newDeliveryTimeout;
+                        if (Objects.nonNull(requestTimeout) && requestTimeout instanceof Number requestTimeoutValue) {
+                            newDeliveryTimeout = requestTimeoutValue.intValue() + (2 * newLingerValue);
+                        } else {
+                            newDeliveryTimeout = 120000 * (2 * newLingerValue);
+                        }
+                        changes.useValue(StreamsConfig.producerPrefix(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG), newDeliveryTimeout);
                     }
                 }
             }

@@ -90,7 +90,8 @@ public class StreamPerformanceEvaluation implements Runnable {
                                                           "trips-per-hour-repartition",
                                                           "%app-id%-raw-by-hash-repartition",
                                                           "%app-id%-raw-unique-store-changelog",
-                                                          "%app-id%-nyc-taxi-stats-store-changelog",
+                                                          "%app-id%-nyc-taxi-pu-stats-store-changelog",
+                                                          "%app-id%-nyc-taxi-do-stats-store-changelog",
                                                           "%app-id%-nyc-taxi-trips-by-pu-location-id-repartition",
                                                           "%app-id%-nyc-taxi-trips-by-do-location-id-repartition",
                                                           "%app-id%-trips-per-hour-repartition" };
@@ -346,7 +347,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         @Override
         public void init(ProcessorContext<Integer, TripStats> context) {
             this.context = context;
-            store = context.getStateStore(Topics.NYC_TAXI_STATS_STORE.topicName());
+            store = context.getStateStore(Topics.NYC_TAXI_PU_STATS_STORE.topicName());
         }
 
         @Override
@@ -466,7 +467,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         var gracePeriod = Duration.ofMinutes(5); // Increased grace period
         var retentionPeriod = windowSize.plus(gracePeriod).plus(Duration.ofMinutes(15)); // Clean up old data
         var builder = new StreamsBuilder();
-        var statsStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_STATS_STORE.topicName(),
+        var statsStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_PU_STATS_STORE.topicName(),
                                                                                        retentionPeriod,
                                                                                        windowSize,
                                                                       false),
@@ -486,7 +487,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         var zone = ZoneId.of("America/New_York");
         taxiDataStream.selectKey((key, value) -> value.puLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
-                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_STATS_STORE.topicName())
+                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_PU_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
@@ -504,7 +505,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         var gracePeriod = Duration.ofMinutes(5); // Increased grace period
         var retentionPeriod = windowSize.plus(gracePeriod).plus(Duration.ofMinutes(15)); // Clean up old data
         var builder = new StreamsBuilder();
-        var statsStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_STATS_STORE.topicName(),
+        var statsStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_PU_STATS_STORE.topicName(),
                                                                                        retentionPeriod,
                                                                                        windowSize,
                                                                       false),
@@ -524,7 +525,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         var zone = ZoneId.of("America/New_York");
         taxiDataStream.selectKey((key, value) -> value.puLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
-                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_STATS_STORE.topicName())
+                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_PU_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
@@ -537,7 +538,7 @@ public class StreamPerformanceEvaluation implements Runnable {
                       .noDefaultBranch();
         taxiDataStream.selectKey((key, value) -> value.doLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_DO_LOCATION_ID.topicName()))
-                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_STATS_STORE.topicName())
+                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_DO_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("do-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()

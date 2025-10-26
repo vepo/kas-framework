@@ -1,7 +1,6 @@
 Maquinas MAGALU BV4-8-100
 
-sudo zypper refresh
-sudo zypper install git-core zip unzip
+sudo zypper refresh && sudo zypper install git-core zip unzip
 ssh-keygen -t ed25519 -C "victor.perticarrari@gmail.com"
 cat ~/.ssh/id_ed25519.pub
 git clone git@github.com:vepo/maestro.git
@@ -21,7 +20,6 @@ sudo mount /dev/vdb /mnt/docker-data
 ### Create test environment
 cd maestro
 ./scripts/start-kafka
-./scripts/create-topics
 
 ## Streams
 curl -s "https://get.sdkman.io" | bash
@@ -40,3 +38,9 @@ go install github.com/hangxie/parquet-tools@latest
 ### Execute test
 cd maestro
 ./scripts/start-test.sh 
+
+
+Cloud 2
+
+Streams BV8-16-100 
+Brokers BV4-8-100

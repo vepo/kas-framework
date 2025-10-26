@@ -338,16 +338,18 @@ public class StreamPerformanceEvaluation implements Runnable {
     public class TripStatsAggregator implements Processor<Integer, TaxiTrip, Integer, TripStats> {
         private WindowStore<Integer, TripStats> store;
         private final Duration duration;
+        private final String topicName;
         private ProcessorContext<Integer, TripStats> context;
 
-        public TripStatsAggregator() {
+        public TripStatsAggregator(String topicName) {
+            this.topicName = topicName;
             this.duration = Duration.ofMinutes(1);
         }
 
         @Override
         public void init(ProcessorContext<Integer, TripStats> context) {
             this.context = context;
-            store = context.getStateStore(Topics.NYC_TAXI_PU_STATS_STORE.topicName());
+            store = context.getStateStore(topicName);
         }
 
         @Override
@@ -487,7 +489,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         var zone = ZoneId.of("America/New_York");
         taxiDataStream.selectKey((key, value) -> value.puLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
-                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_PU_STATS_STORE.topicName())
+                      .process(() -> new TripStatsAggregator(Topics.NYC_TAXI_PU_STATS_STORE.topicName()), Topics.NYC_TAXI_PU_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
@@ -525,7 +527,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         var zone = ZoneId.of("America/New_York");
         taxiDataStream.selectKey((key, value) -> value.puLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
-                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_PU_STATS_STORE.topicName())
+                      .process(() -> new TripStatsAggregator(Topics.NYC_TAXI_PU_STATS_STORE.topicName()), Topics.NYC_TAXI_PU_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
@@ -538,7 +540,7 @@ public class StreamPerformanceEvaluation implements Runnable {
                       .noDefaultBranch();
         taxiDataStream.selectKey((key, value) -> value.doLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_DO_LOCATION_ID.topicName()))
-                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_DO_STATS_STORE.topicName())
+                      .process(() -> new TripStatsAggregator(Topics.NYC_TAXI_DO_STATS_STORE.topicName()), Topics.NYC_TAXI_DO_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("do-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()

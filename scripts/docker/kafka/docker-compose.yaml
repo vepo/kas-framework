@@ -101,6 +101,8 @@ services:
   producer:
     image: openjdk:21-jdk
     command: java -Xms1536m -Xmx1536m -jar /app/data-generator-jar-with-dependencies.jar
+    ports:
+     - 7777:7777
     deploy:
       resources:
         limits:

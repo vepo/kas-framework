@@ -75,7 +75,7 @@ public class StreamPerformanceEvaluation implements Runnable {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(StreamPerformanceEvaluation.class);
-    private static final int TEST_DURATION_IN_MINUTES = 20;
+    private static final int TEST_DURATION_IN_MINUTES = 30;
     private static final CommandClient COMMAND = new CommandClient();
     private static final String[] TOPICS = new String[] { "raw-output",
                                                           "raw-input",
@@ -337,17 +337,19 @@ public class StreamPerformanceEvaluation implements Runnable {
 
     public class TripStatsAggregator implements Processor<Integer, TaxiTrip, Integer, TripStats> {
         private WindowStore<Integer, TripStats> store;
+        private final String topicName;
         private final Duration duration;
         private ProcessorContext<Integer, TripStats> context;
 
-        public TripStatsAggregator() {
+        public TripStatsAggregator(String topicName) {
+            this.topicName = topicName;
             this.duration = Duration.ofMinutes(1);
         }
 
         @Override
         public void init(ProcessorContext<Integer, TripStats> context) {
             this.context = context;
-            store = context.getStateStore(Topics.NYC_TAXI_PU_STATS_STORE.topicName());
+            store = context.getStateStore(topicName);
         }
 
         @Override
@@ -487,7 +489,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         var zone = ZoneId.of("America/New_York");
         taxiDataStream.selectKey((key, value) -> value.puLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
-                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_PU_STATS_STORE.topicName())
+                      .process(() -> new TripStatsAggregator(Topics.NYC_TAXI_PU_STATS_STORE.topicName()), Topics.NYC_TAXI_PU_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
@@ -505,13 +507,18 @@ public class StreamPerformanceEvaluation implements Runnable {
         var gracePeriod = Duration.ofMinutes(5); // Increased grace period
         var retentionPeriod = windowSize.plus(gracePeriod).plus(Duration.ofMinutes(15)); // Clean up old data
         var builder = new StreamsBuilder();
-        var statsStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_PU_STATS_STORE.topicName(),
+        builder.addStateStore(Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_PU_STATS_STORE.topicName(),
                                                                                        retentionPeriod,
                                                                                        windowSize,
                                                                       false),
                                                           Serdes.Integer(),
-                                                          JsonSerde.of(TripStats.class));
-        builder.addStateStore(statsStoreBuilder);
+                                                          JsonSerde.of(TripStats.class)))
+               .addStateStore(Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_DO_STATS_STORE.topicName(),
+                                                                                       retentionPeriod,
+                                                                                       windowSize,
+                                                                      false),
+                                                          Serdes.Integer(),
+                                                          JsonSerde.of(TripStats.class)));
         var taxiDataStream = builder.stream(Topics.NYC_TAXI_TRIPS.topicName(), Consumed.with(Serdes.String(), JsonSerde.of(TaxiTrip.class))
                                     .withTimestampExtractor((record, partitionTime) -> {
                                         if (record.value() instanceof TaxiTrip tt) {
@@ -525,7 +532,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         var zone = ZoneId.of("America/New_York");
         taxiDataStream.selectKey((key, value) -> value.puLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
-                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_PU_STATS_STORE.topicName())
+                      .process(() -> new TripStatsAggregator(Topics.NYC_TAXI_PU_STATS_STORE.topicName()), Topics.NYC_TAXI_PU_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
@@ -538,7 +545,7 @@ public class StreamPerformanceEvaluation implements Runnable {
                       .noDefaultBranch();
         taxiDataStream.selectKey((key, value) -> value.doLocationID())
                       .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_DO_LOCATION_ID.topicName()))
-                      .process(TripStatsAggregator::new, Topics.NYC_TAXI_DO_STATS_STORE.topicName())
+                      .process(() -> new TripStatsAggregator(Topics.NYC_TAXI_DO_STATS_STORE.topicName()), Topics.NYC_TAXI_DO_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("do-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()

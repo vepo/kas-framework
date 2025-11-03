@@ -1,27 +1,4 @@
 services:
-  producer:
-    image: openjdk:21-jdk
-    command: java -Xms1536m -Xmx1536m -jar /app/data-generator-jar-with-dependencies.jar
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 3gb
-        reservations:
-          cpus: '2'
-          memory: 3gb
-    # deploy:
-    #   mode: replicated
-    #   replicas: 6
-    volumes:
-      - ./runtime:/app
-      - ./dataset:/dataset
-    networks:
-      - maestro-network
-    # extra_hosts:
-    #   kafka-0: 201.23.74.39
-    #   kafka-1: 201.23.74.39
-    #   kafka-2: 201.23.74.39
   test-stream:
     image: openjdk:21-jdk
     command: java -jar /app/sample-stream-jar-with-dependencies.jar

@@ -1,5 +1,16 @@
 #!/bin/bash
 
-(cd scripts/docker/kafka &&  docker-compose up -d)
+./scripts/download-dataset
 
-# sudo bash -c 'echo "127.0.0.1 kafka-0 kafka-1 kafka-2" >> /etc/hosts'
+mvn package -DskipTests
+
+(cd scripts/docker/kafka && docker-compose stop && docker-compose rm -f)
+
+rm -rf scripts/docker/kafka/runtime/*.jar
+rm -rf scripts/docker/kafka/dataset/*.json
+
+cp experiment/data-generator/target/data-generator-jar-with-dependencies.jar scripts/docker/kafka/runtime/
+
+cp dataset/yellow_tripdata_2025-06.json                                      scripts/docker/kafka/dataset/data.json
+
+(cd scripts/docker/kafka &&  docker-compose up -d)

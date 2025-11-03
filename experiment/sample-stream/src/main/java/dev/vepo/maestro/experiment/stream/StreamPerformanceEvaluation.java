@@ -339,7 +339,6 @@ public class StreamPerformanceEvaluation implements Runnable {
         private WindowStore<Integer, TripStats> store;
         private final String topicName;
         private final Duration duration;
-        private final String topicName;
         private ProcessorContext<Integer, TripStats> context;
 
         public TripStatsAggregator(String topicName) {

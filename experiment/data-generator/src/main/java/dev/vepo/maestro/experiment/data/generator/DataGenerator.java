@@ -30,7 +30,7 @@ public class DataGenerator {
     private static final String RAW_TOPIC = "raw-input";
     private static final String BOOTSTRAP_SERVERS = "kafka-0:9092,kafka-1:9094,kafka-2:9096";
     private static final int THREADS = Runtime.getRuntime().availableProcessors() * 2;
-    private static final int TARGET_RATE_PER_THREAD = 110000 / THREADS;
+    private static final int TARGET_RATE_PER_THREAD = 70_000 / THREADS;
     private static final int BATCH_SIZE = 25;
 
     @FunctionalInterface

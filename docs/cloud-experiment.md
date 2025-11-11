@@ -17,6 +17,16 @@ sudo mkfs.ext4 /dev/vdb
 sudo mkdir /mnt/docker-data
 sudo mount /dev/vdb /mnt/docker-data
 
+sudo zypper in go go-doc
+export PATH=$PATH:/home/$USER/go/bin
+echo 'export PATH=$PATH:/home/$USER/go/bin' >> ~/.bashrc
+go install github.com/hangxie/parquet-tools@latest
+
+curl -s "https://get.sdkman.io" | bash
+source "/home/opensuse/.sdkman/bin/sdkman-init.sh"
+sdk install java 21.0.2-open
+sdk install maven 3.9.9
+
 ### Create test environment
 cd maestro
 ./scripts/start-kafka
@@ -29,10 +39,6 @@ sdk install maven 3.9.9
 cd maestro/
 mvn clean package
 
-sudo zypper in go go-doc
-export PATH=$PATH:/home/$USER/go/bin
-echo 'export PATH=$PATH:/home/$USER/go/bin' >> ~/.bashrc
-go install github.com/hangxie/parquet-tools@latest
 
 
 ### Execute test

@@ -17,7 +17,7 @@ import com.sun.management.OperatingSystemMXBean;
 public class EnvironmentMetrics {
     private static final Logger logger = LoggerFactory.getLogger(EnvironmentMetrics.class);
     private final static OperatingSystemMXBean osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-    private final static MemoryMXBean memoryBeans = (MemoryMXBean) ManagementFactory.getMemoryMXBean();
+    private final static MemoryMXBean memoryBean = (MemoryMXBean) ManagementFactory.getMemoryMXBean();
     private final static Object _LOCK = new Object();
     private final static Duration cacheDuration = Duration.ofSeconds(20);
     private final static long PID = ProcessHandle.current().pid();
@@ -118,7 +118,16 @@ public class EnvironmentMetrics {
                     if (statmContent.length < 2) {
                         throw new IllegalStateException("Invalid content of statm: " + Arrays.toString(statmContent));
                     }
-                    usedMemory = Long.parseLong(statmContent[1]) * pageSize;
+                    long totalResidentMemory = Long.parseLong(statmContent[1]) * pageSize;
+                        
+                    // Get heap usage from JMX
+                    var heapUsage = memoryBean.getHeapMemoryUsage();
+                    long usedHeap = heapUsage.getUsed();
+                    long committedHeap = heapUsage.getCommitted();
+                    long freeHeap = committedHeap - usedHeap;
+                    
+                    // Subtract free heap from total resident memory
+                    usedMemory = totalResidentMemory - freeHeap;
                     lastMemoryUsed = System.nanoTime();
                 } catch (IOException ioe) {
                     throw new IllegalStateException("Cannot load /proc/" + PID +"/statm", ioe);

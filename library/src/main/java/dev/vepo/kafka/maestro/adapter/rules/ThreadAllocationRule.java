@@ -22,7 +22,7 @@ public class ThreadAllocationRule implements AdapterRule {
             var memoryPerThread = averageMemoryUsage / activeThreads;
             logger.info("Calculating max threads... cpuPerThread={} memoryPerThread={}", cpuPerThread, memoryPerThread);
             int maxThreadsCpu = (int) Math.floor(context.cpuAvailable() / cpuPerThread);
-            int maxThreadMemory = (int) Math.floor(1.2 * context.memoryAvailable() / memoryPerThread);
+            int maxThreadMemory = (int) Math.floor(context.memoryAvailable() / memoryPerThread);
             logger.info("Calculating max threads... maxThreadsCpu={} maxThreadMemory={}", maxThreadsCpu, maxThreadMemory);
             int maxPossibleThreads = Math.min(Math.min(maxThreadsCpu, maxThreadMemory), context.totalPartitions());
             logger.info("Math done! maxThreads={} activeThreads={}", maxPossibleThreads, activeThreads);

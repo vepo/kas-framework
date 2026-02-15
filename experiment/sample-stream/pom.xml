@@ -8,18 +8,18 @@
     <parent>
         <groupId>dev.vepo.kafka</groupId>
         <artifactId>experiment</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <groupId>dev.vepo.kafka</groupId>
     <artifactId>sample-stream</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>Maestro :: Experiment :: Sample Stream</name>
+    <name>KAS :: Experiment :: Sample Stream</name>
 
     <properties>
-        <main.class>dev.vepo.maestro.experiment.stream.StreamPerformanceEvaluation</main.class>
+        <main.class>dev.vepo.kas.experiment.stream.StreamPerformanceEvaluation</main.class>
     </properties>
 
     <dependencies>
@@ -41,7 +41,7 @@
         </dependency>
         <dependency>
             <groupId>dev.vepo.kafka</groupId>
-            <artifactId>maestro</artifactId>
+            <artifactId>kas-streams</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

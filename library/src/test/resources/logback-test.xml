@@ -8,7 +8,7 @@
         </encoder>
     </appender>
         
-    <logger name="dev.vepo.kafka.maestro" level="DEBUG"/>
+    <logger name="dev.vepo.kafka.adaptive" level="DEBUG"/>
     <logger name="org.apache.kafka" level="ERROR"/>
    
     <root level="INFO">

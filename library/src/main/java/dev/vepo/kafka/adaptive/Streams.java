@@ -1,0 +1,31 @@
+package dev.vepo.kafka.adaptive;
+
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
+import org.apache.kafka.streams.KafkaStreams.CloseOptions;
+import org.apache.kafka.streams.KafkaStreams.StateListener;
+
+public interface Streams extends AutoCloseable {
+
+    void cleanUp();
+
+    void start();
+
+    void close();
+
+    void setStateListener(StateListener listener);
+
+    int threadNumber();
+
+    void close(CloseOptions options);
+
+    void restart(Properties props);
+
+    Map<String, Object> originalConfigs();
+
+    Set<String> inputTopics();
+
+    void addNewThreads(int requiredNumberOfThreads);
+}

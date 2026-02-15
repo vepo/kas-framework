@@ -7,16 +7,16 @@
 
     <parent>
         <groupId>dev.vepo.kafka</groupId>
-        <artifactId>maestro-parent</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <artifactId>kas-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <groupId>dev.vepo.kafka</groupId>
-    <artifactId>maestro</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <artifactId>kas-streams</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>Maestro :: Library</name>
+    <name>KAS :: Library</name>
 
     <properties>
     </properties>
@@ -53,19 +53,19 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>1.21.0</version>
+            <version>1.21.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.21.0</version>
+            <version>1.21.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>kafka</artifactId>
-            <version>1.21.0</version>
+            <version>1.21.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -81,6 +81,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.21.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
             <version>4.3.0</version>
@@ -90,7 +96,7 @@
 
     <build>
         <finalName>kafka-self-tuned-stream</finalName>
-        <plugins>           
+        <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>

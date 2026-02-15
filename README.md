@@ -136,20 +136,20 @@ KAS increases `linger.ms` to accumulate records before transmission, with an upp
 ```xml
 <dependency>
     <groupId>dev.vepo.kafka</groupId>
-    <artifactId>kafka-maestro</artifactId>
-    <version>1.0.0</version>
+    <artifactId>kas-streams</artifactId>
+    <version>0.1.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```gradle
-implementation 'dev.vepo.kafka:kafka-maestro:0.1.0'
+implementation 'dev.vepo.kafka:kas-stream:0.1.0'
 ```
 
 ## 🚀 Quick Start
 
-### 1. Replace `KafkaStreams` with `MaestroStreams`
+### 1. Replace `KafkaStreams` with `AdaptiveStreams`
 ```java
 Properties props = new Properties();
 // ... configure properties
@@ -163,7 +163,7 @@ streams.start();
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| `maestro.adapter.rules` | List of rule classes to enable | Empty (all adaptation rules) |
+| `adaptive.adapter.rules` | List of rule classes to enable | Empty (all adaptation rules) |
 
 ### Selecting Adaptation Rules
 
@@ -171,19 +171,19 @@ Enable specific rules based on your topology characteristics:
 
 ```java
 // All rules - maximum throughput improvement
-props.put(MaestroConfigs.ADAPTER_RULE_CLASSES_CONFIG,
+props.put(AdaptiveConfigs.ADAPTER_RULE_CLASSES_CONFIG,
           List.of(ThreadAllocationRule.class,
                   AdjustConsumerFetchSizeRule.class,
                   UseCompressionOnProducerRule.class,
                   BatchProducerRule.class));
 
 // I/O bound topologies - focus on fetch and batching
-props.put(MaestroConfigs.ADAPTER_RULE_CLASSES_CONFIG,
+props.put(AdaptiveConfigs.ADAPTER_RULE_CLASSES_CONFIG,
           List.of(AdjustConsumerFetchSizeRule.class,
                   BatchProducerRule.class));
 
 // CPU bound topologies - focus on thread allocation
-props.put(MaestroConfigs.ADAPTER_RULE_CLASSES_CONFIG,
+props.put(AdaptiveConfigs.ADAPTER_RULE_CLASSES_CONFIG,
           List.of(ThreadAllocationRule.class));
 ```
 

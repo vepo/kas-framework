@@ -1,8 +1,8 @@
-module maestro.experiment.sampleStream {
+module kas.experiment.sampleStream {
     requires transitive kafka.streams;
     requires java.management;
     requires kafka.clients;
     requires org.slf4j;
     requires com.fasterxml.jackson.databind;
-    requires maestro.kafkaStream;
+    requires kas.stream;
 }

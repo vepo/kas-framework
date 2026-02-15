@@ -1,4 +1,4 @@
-# Maestro Design
+# KAS Design
 
 Streamer will start and it will follow the given states
 

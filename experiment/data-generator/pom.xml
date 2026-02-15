@@ -8,18 +8,18 @@
     <parent>
         <groupId>dev.vepo.kafka</groupId>
         <artifactId>experiment</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <groupId>dev.vepo.kafka</groupId>
     <artifactId>data-generation</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>Maestro :: Experiment :: Data Generatior</name>
+    <name>KAS :: Experiment :: Data Generatior</name>
 
     <properties>
-        <main.class>dev.vepo.maestro.experiment.data.generator.DataGenerator</main.class>
+        <main.class>dev.vepo.kas.experiment.data.generator.DataGenerator</main.class>
     </properties>
 
     <dependencies>

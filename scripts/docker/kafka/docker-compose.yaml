@@ -31,7 +31,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-0:9092
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-0:9093,2@kafka-1:9095,3@kafka-2:9097
     networks:
-      - maestro-network
+      - adaptive-network
   kafka-1:
     image: vepo/kafka:4.0.0
     container_name: kafka-1
@@ -64,7 +64,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9094
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-0:9093,2@kafka-1:9095,3@kafka-2:9097
     networks:
-      - maestro-network
+      - adaptive-network
   kafka-2:
     image: vepo/kafka:4.0.0
     container_name: kafka-2
@@ -97,7 +97,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9096
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-0:9093,2@kafka-1:9095,3@kafka-2:9097
     networks:
-      - maestro-network
+      - adaptive-network
   producer:
     image: vepo/openjdk:21-jdk
     command: java -Xms1536m -Xmx1536m -jar /app/data-generator-jar-with-dependencies.jar
@@ -115,8 +115,8 @@ services:
       - ./runtime:/app
       - ./dataset:/dataset
     networks:
-      - maestro-network
+      - adaptive-network
 networks:
-  maestro-network:
-    name: maestro-network
+  adaptive-network:
+    name: adaptive-network
     driver: bridge

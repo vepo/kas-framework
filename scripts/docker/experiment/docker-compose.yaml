@@ -16,16 +16,16 @@ services:
       - ./runtime:/app
       - ./stats:/app-stats
     networks:
-      - maestro-network
+      - adaptive-network
     # extra_hosts:
     #   kafka-0: 201.23.74.39
     #   kafka-1: 201.23.74.39
     #   kafka-2: 201.23.74.39
     #   producer: 201.23.74.39
 networks:
-  maestro-network:
+  adaptive-network:
     ## local
     external: true
     ## cloud
-    # name: maestro-network
+    # name: adaptive-network
     # driver: bridge

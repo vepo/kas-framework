@@ -7,16 +7,16 @@
 
     <parent>
         <groupId>dev.vepo.kafka</groupId>
-        <artifactId>maestro-parent</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <artifactId>kas-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <groupId>dev.vepo.kafka</groupId>
     <artifactId>experiment</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Maestro :: Experiment</name>
+    <name>KAS :: Experiment</name>
     <modules>
         <module>data-generator</module>
         <module>sample-stream</module>

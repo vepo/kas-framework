@@ -32,7 +32,7 @@ public record TripStats(long windowStart,
                              0);
     }
 
-    public TripStats add(TaxiTrip trip, Number x) {        
+    public TripStats add(TaxiTrip trip) {
         var tipPercentualValue = (trip.tipAmount() / trip.fareAmount()) * 100;
         return new TripStats(windowStart,
                              windowEnd,

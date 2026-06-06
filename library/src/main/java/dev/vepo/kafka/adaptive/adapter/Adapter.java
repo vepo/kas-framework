@@ -114,7 +114,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         } else {
             this.rules.addAll(configuredRules);
         }
-        
+
         logger.info("Rules: {}", rules);
         this.maxHistorySize = configs.getInt(ADAPTIVE_ADAPTER_HISTORY_SIZE_MAX_CONFIG);
         this.minHistorySize = configs.getInt(ADAPTIVE_ADAPTER_HISTORY_SIZE_MIN_CONFIG);

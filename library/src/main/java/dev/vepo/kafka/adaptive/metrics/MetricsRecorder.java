@@ -36,7 +36,9 @@ public class MetricsRecorder implements MetricListener {
         }
     }
 
-    public enum Event {CHECK, APPLY, RESTART};
+    public enum Event {
+        CHECK, APPLY, RESTART
+    };
 
     public void recordEvent(Event event) {
         recordEvent(event, null);
@@ -45,14 +47,14 @@ public class MetricsRecorder implements MetricListener {
     public void recordEvent(Event event, Map<?, ?> properties) {
         // write the event to a log file
         try {
-            if (Objects.nonNull(properties)){
+            if (Objects.nonNull(properties)) {
                 Files.writeString(dataPath.resolve("events.txt"),
-                                String.format("%d %s %s\n", System.currentTimeMillis(), event.name(), properties.toString()),
-                                APPEND, CREATE);
+                                  String.format("%d %s %s\n", System.currentTimeMillis(), event.name(), properties.toString()),
+                                  APPEND, CREATE);
             } else {
                 Files.writeString(dataPath.resolve("events.txt"),
-                                String.format("%d %s\n", System.currentTimeMillis(), event.name()),
-                                APPEND, CREATE);
+                                  String.format("%d %s\n", System.currentTimeMillis(), event.name()),
+                                  APPEND, CREATE);
             }
         } catch (IOException e) {
             logger.error("Error writing execution info", e);
@@ -61,7 +63,6 @@ public class MetricsRecorder implements MetricListener {
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
 
 }

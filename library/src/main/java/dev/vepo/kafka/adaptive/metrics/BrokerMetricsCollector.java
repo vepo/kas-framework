@@ -82,7 +82,8 @@ public class BrokerMetricsCollector implements Configurable, Closeable {
                      .describeTopics(topics)
                      .allTopicNames()
                      .get()
-                     .forEach((topic, description) -> listener.feed(new PerformanceMetric("broker", "partitions-count", "admin", description.partitions().size(), topic)));
+                     .forEach((topic, description) -> listener.feed(new PerformanceMetric("broker", "partitions-count", "admin",
+                                                                                          description.partitions().size(), topic)));
             this.topicsDone = true;
             logger.info("Topic info collected successfully!");
         } catch (InterruptedException e) {
@@ -101,9 +102,9 @@ public class BrokerMetricsCollector implements Configurable, Closeable {
         logger.info("Collecting broker info!");
         try {
             var nodes = refClient.get()
-                    .describeCluster()
-                    .nodes()
-                    .get();
+                                 .describeCluster()
+                                 .nodes()
+                                 .get();
             listener.feed(new PerformanceMetric(Context.BROKER, "brokers-count", "admin", nodes.size()));
             this.brokerDone = true;
             logger.info("Topic broker collected successfully! nodes={}", nodes);

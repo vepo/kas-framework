@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Sample data.
+ *
  * <pre>
  *   {
  *     "Airport_fee":0,
@@ -31,7 +32,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *     "trip_distance":1.39
  *   }
  * </pre>
- * @see <a href="https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf">Yellow Trips Data Dictionary</a>
+ *
+ * @see <a href=
+ *      "https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf">Yellow
+ *      Trips Data Dictionary</a>
  */
 public record TaxiTrip(@JsonProperty("VendorID") int vendorId,
                        @JsonProperty("tpep_pickup_datetime") long pickupTimestamp,

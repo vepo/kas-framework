@@ -38,8 +38,8 @@ public class AdaptiveConfigs extends AbstractConfig {
     public static final String NUM_STREAM_THREADS_DOC = "The number of threads to execute stream processing.";
 
     public static final String ADAPTER_RULE_CLASSES_CONFIG = "adaptive.adapter.rule";
-    public static final String ADAPTER_RULE_CLASSES_DOC = "A list of classes to use as adapter rules. Implementing the <code>dev.vepo.kafka.adaptive.adapter.rules.AdapterRule</code> interface allows plugging in classes that will be used to evaluate adapter rules.";
-
+    public static final String ADAPTER_RULE_CLASSES_DOC =
+            "A list of classes to use as adapter rules. Implementing the <code>dev.vepo.kafka.adaptive.adapter.rules.AdapterRule</code> interface allows plugging in classes that will be used to evaluate adapter rules.";
 
     public static final Duration DEFAULT_ADAPTIVE_ADAPTER_TICK_FREQUENCY = Duration.ofMinutes(2);
     public static final Duration DEFAULT_METRICS_COLLECTION_FREQUENCY = Duration.ofSeconds(1);

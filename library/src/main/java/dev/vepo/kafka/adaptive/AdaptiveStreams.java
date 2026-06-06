@@ -43,7 +43,8 @@ public class AdaptiveStreams implements Streams {
         }
         var configs = new AdaptiveConfigs(props);
         props.put(ADAPTIVE_ADAPTER_INSTANCE_CONFIG, configs.getConfiguredInstance(ADAPTIVE_ADAPTER_CLASS_CONFIG, Adapter.class));
-        // props.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, AdaptiveRocksDBConfigSetter.class);
+        // props.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG,
+        // AdaptiveRocksDBConfigSetter.class);
         return props;
     }
 
@@ -114,13 +115,13 @@ public class AdaptiveStreams implements Streams {
         return inputTopics.updateAndGet(value -> {
             if (Objects.isNull(value)) {
                 return this.topology.describe()
-                        .subtopologies()
-                        .stream()
-                        .flatMap(s -> s.nodes().stream())
-                        .filter(n -> n instanceof Source)
-                        .map(n -> (Source) n)
-                        .flatMap(source -> source.topicSet().stream())
-                        .collect(Collectors.toSet());
+                                    .subtopologies()
+                                    .stream()
+                                    .flatMap(s -> s.nodes().stream())
+                                    .filter(n -> n instanceof Source)
+                                    .map(n -> (Source) n)
+                                    .flatMap(source -> source.topicSet().stream())
+                                    .collect(Collectors.toSet());
             }
             return value;
         });
@@ -165,12 +166,12 @@ public class AdaptiveStreams implements Streams {
             threadName = this.innerStreams.addStreamThread();
             logger.info("Added new thread: {}", threadName);
             originalProps.compute(NUM_STREAM_THREADS_CONFIG,
-                    (key, value) -> switch (value) {
-                        case String sValue -> Integer.parseInt(sValue) + 1;
-                        case Integer iValue -> iValue + 1;
-                        case Number nValue -> nValue.intValue() + 1;
-                        default -> 2;
-                    });
+                                  (key, value) -> switch (value) {
+                                      case String sValue -> Integer.parseInt(sValue) + 1;
+                                      case Integer iValue -> iValue + 1;
+                                      case Number nValue -> nValue.intValue() + 1;
+                                      default -> 2;
+                                  });
             currentThreadNumber++;
         } while (threadName.isPresent() && currentThreadNumber < requiredNumberOfThreads);
     }
@@ -178,7 +179,7 @@ public class AdaptiveStreams implements Streams {
     @Override
     public Map<String, Object> originalConfigs() {
         return originalProps.entrySet()
-                .stream()
-                .collect(Collectors.toMap(entry -> entry.getKey().toString(), Map.Entry::getValue));
+                            .stream()
+                            .collect(Collectors.toMap(entry -> entry.getKey().toString(), Map.Entry::getValue));
     }
 }

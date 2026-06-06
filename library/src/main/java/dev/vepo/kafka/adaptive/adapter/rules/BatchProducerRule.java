@@ -39,11 +39,11 @@ public class BatchProducerRule implements AdapterRule {
                         int newLingerValue;
                         if (Objects.nonNull(defaultLingerMs)) {
                             var lingerMs = switch (defaultLingerMs) {
-                                               case Integer iValue -> iValue;
-                                               case Number dValue -> dValue.intValue();
-                                               case String sValue -> Integer.valueOf(sValue);
-                                               default -> 0;
-                                           };
+                                case Integer iValue -> iValue;
+                                case Number dValue -> dValue.intValue();
+                                case String sValue -> Integer.valueOf(sValue);
+                                default -> 0;
+                            };
                             newLingerValue = (int) (lingerMs + deltaLinger);
                         } else {
                             newLingerValue = (int) deltaLinger;

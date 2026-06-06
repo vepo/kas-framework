@@ -19,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.AdminClient;
@@ -75,45 +76,62 @@ public class StreamPerformanceEvaluation implements Runnable {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(StreamPerformanceEvaluation.class);
-    private static final int TEST_DURATION_IN_MINUTES = 30;
+    private static final int TEST_DURATION_IN_MINUTES = 8;
     private static final CommandClient COMMAND = new CommandClient();
-    private static final String[] TOPICS = new String[] { "raw-output",
-                                                          "raw-input",
-                                                          "raw-by-hash-repartition",
-                                                          "nyc-taxi-dashboard-fare",
-                                                          "nyc-taxi-dashboard-tips",
-                                                          "nyc-taxi-dashboard-passengers",
-                                                          "nyc-taxi-trips",
+    private static final String[] TOPICS = new String[] { "raw-output", "raw-input", "raw-by-hash-repartition", "nyc-taxi-dashboard-fare",
+                                                          "nyc-taxi-dashboard-tips", "nyc-taxi-dashboard-passengers", "nyc-taxi-trips",
                                                           "nyc-taxi-trips-by-pu-location-id-repartition",
-                                                          "nyc-taxi-trips-by-do-location-id-repartition",
-                                                          "trips-per-hour",
-                                                          "trips-per-hour-repartition",
+                                                          "nyc-taxi-trips-by-do-location-id-repartition", "trips-per-hour", "trips-per-hour-repartition",
                                                           "%app-id%-raw-by-hash-repartition",
-                                                          "%app-id%-raw-unique-store-changelog",
-                                                          "%app-id%-nyc-taxi-pu-stats-store-changelog",
+                                                          "%app-id%-raw-unique-store-changelog", "%app-id%-nyc-taxi-pu-stats-store-changelog",
                                                           "%app-id%-nyc-taxi-do-stats-store-changelog",
                                                           "%app-id%-nyc-taxi-trips-by-pu-location-id-repartition",
                                                           "%app-id%-nyc-taxi-trips-by-do-location-id-repartition",
-                                                          "%app-id%-trips-per-hour-repartition" };
+                                                          "%app-id%-trips-per-hour-repartition"
+    };
+
     private record Execution(String appId,
                              String useCase,
                              String useCaseArgument,
                              Type type,
                              TopologyDefinition topology,
-                             List<Class<? extends AdapterRule>> rules) {
+                             List<Class<? extends AdapterRule>> rules,
+                             int round) {
         private Execution(String appId,
-                             String useCase,
-                             String useCaseArgument,
-                             Type type,
-                             TopologyDefinition topology) {
-            this(appId, useCase, useCaseArgument, type,topology, null);
+                          String useCase,
+                          String useCaseArgument,
+                          Type type,
+                          TopologyDefinition topology) {
+            this(appId, useCase, useCaseArgument, type, topology, null, 1);
+        }
+
+        private Execution(Execution execution, int round) {
+            this(execution.appId, execution.useCase, execution.useCaseArgument, execution.type, execution.topology, execution.rules, round);
+        }
+
+        private Execution(String appId,
+                          String useCase,
+                          String useCaseArgument,
+                          Type type,
+                          TopologyDefinition topology,
+                          int round) {
+            this(appId, useCase, useCaseArgument, type, topology, null, round);
+        }
+
+        private Execution(String appId,
+                          String useCase,
+                          String useCaseArgument,
+                          Type type,
+                          TopologyDefinition topology,
+                          List<Class<? extends AdapterRule>> rules) {
+            this(appId, useCase, useCaseArgument, type, topology, rules, 1);
         }
 
         public void exec() {
             try {
                 createTopics();
                 COMMAND.sendCommand(Command.START, useCase, useCaseArgument);
-                var evaluation = new StreamPerformanceEvaluation(type, appId, topology, rules);
+                var evaluation = new StreamPerformanceEvaluation(type, appId, topology, rules, round);
                 evaluation.run();
                 COMMAND.sendCommand(Command.STOP);
                 sleep(Duration.ofMinutes(1));
@@ -147,7 +165,8 @@ public class StreamPerformanceEvaluation implements Runnable {
                         try {
                             logger.info("Removing members from consumer group: {}", groupId);
                             var removeResult = adminClient.removeMembersFromConsumerGroup(groupId, new RemoveMembersFromConsumerGroupOptions()).all().get();
-                            // This is a simplified approach - you might need to handle each group individually
+                            // This is a simplified approach - you might need to handle each group
+                            // individually
                             logger.info("Members removed! {}", removeResult);
                         } catch (Exception e) {
                             logger.warn("Could not remove members from consumer groups: {}", e.getMessage());
@@ -184,98 +203,382 @@ public class StreamPerformanceEvaluation implements Runnable {
         }
     }
 
+    private static Execution[] PAPER_SCENARIOS = new Execution[] { new Execution("raw-1000-warmup", "RAW", "1000", Type.ADAPTIVE,
+                                                                                 TopologyDefinition.REDUCE),
+                                                                   new Execution("raw-1000-baseline", "RAW", "1000", Type.VANILLA,
+                                                                                 TopologyDefinition.REDUCE),
+                                                                   new Execution("raw-1000-all", "RAW", "1000", Type.ADAPTIVE,
+                                                                                 TopologyDefinition.REDUCE,
+                                                                                 List.of(ThreadAllocationRule.class,
+                                                                                         AdjustConsumerFetchSizeRule.class,
+                                                                                         UseCompressionOnProducerRule.class,
+                                                                                         BatchProducerRule.class)),
+                                                                   new Execution("raw-1000-thread-allocation",
+                                                                                 "RAW",
+                                                                                 "1000",
+                                                                                 Type.ADAPTIVE,
+                                                                                 TopologyDefinition.REDUCE,
+                                                                                 List.of(ThreadAllocationRule.class)),
+                                                                   new Execution("raw-1000-fetch-size",
+                                                                                 "RAW",
+                                                                                 "1000",
+                                                                                 Type.ADAPTIVE,
+                                                                                 TopologyDefinition.REDUCE,
+                                                                                 List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                   new Execution("raw-1000-compression",
+                                                                                 "RAW",
+                                                                                 "1000",
+                                                                                 Type.ADAPTIVE,
+                                                                                 TopologyDefinition.REDUCE,
+                                                                                 List.of(UseCompressionOnProducerRule.class)),
+                                                                   new Execution("raw-1000-batch",
+                                                                                 "RAW",
+                                                                                 "1000",
+                                                                                 Type.ADAPTIVE,
+                                                                                 TopologyDefinition.REDUCE,
+                                                                                 List.of(BatchProducerRule.class)),
+                                                                   // Stats with more topics
+                                                                   new Execution("stats-plus-warmup", "STATS", "", Type.ADAPTIVE,
+                                                                                 TopologyDefinition.STATS_MORE_OUTPUT),
+                                                                   new Execution("stats-plus-baseline", "STATS", "", Type.VANILLA,
+                                                                                 TopologyDefinition.STATS_MORE_OUTPUT),
+                                                                   new Execution("stats-plus-all",
+                                                                                 "STATS", "",
+                                                                                 Type.ADAPTIVE,
+                                                                                 TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                                 List.of(ThreadAllocationRule.class,
+                                                                                         AdjustConsumerFetchSizeRule.class,
+                                                                                         UseCompressionOnProducerRule.class,
+                                                                                         BatchProducerRule.class)),
+                                                                   new Execution("stats-plus-thread-allocation",
+                                                                                 "STATS",
+                                                                                 "",
+                                                                                 Type.ADAPTIVE,
+                                                                                 TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                                 List.of(ThreadAllocationRule.class)),
+                                                                   new Execution("stats-plus-fetch-size",
+                                                                                 "STATS",
+                                                                                 "",
+                                                                                 Type.ADAPTIVE,
+                                                                                 TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                                 List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                   new Execution("stats-plus-compression",
+                                                                                 "STATS",
+                                                                                 "",
+                                                                                 Type.ADAPTIVE,
+                                                                                 TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                                 List.of(UseCompressionOnProducerRule.class)),
+                                                                   new Execution("stats-plus-batch",
+                                                                                 "STATS",
+                                                                                 "",
+                                                                                 Type.ADAPTIVE,
+                                                                                 TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                                 List.of(BatchProducerRule.class))
+
+    };
+    private static Execution[] ALL_SCENARIOS = new Execution[] { new Execution("stats-simple-warmup",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS),
+                                                                 new Execution("stats-simple-baseline",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.VANILLA,
+                                                                               TopologyDefinition.STATS),
+                                                                 new Execution("stats-simple-all",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS,
+                                                                               List.of(ThreadAllocationRule.class,
+                                                                                       AdjustConsumerFetchSizeRule.class,
+                                                                                       UseCompressionOnProducerRule.class,
+                                                                                       BatchProducerRule.class)),
+                                                                 new Execution("stats-simple-thread-allocation",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS,
+                                                                               List.of(ThreadAllocationRule.class)),
+                                                                 new Execution("stats-simple-fetch-size",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS,
+                                                                               List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                 new Execution("stats-simple-compression",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS,
+                                                                               List.of(UseCompressionOnProducerRule.class)),
+                                                                 new Execution("stats-simple-batch",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS,
+                                                                               List.of(BatchProducerRule.class)),
+                                                                 // Stats with more topics
+                                                                 new Execution("stats-plus-warmup", "STATS", "", Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS_MORE_OUTPUT),
+                                                                 new Execution("stats-plus-baseline", "STATS", "", Type.VANILLA,
+                                                                               TopologyDefinition.STATS_MORE_OUTPUT),
+                                                                 new Execution("stats-plus-all",
+                                                                               "STATS", "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                               List.of(ThreadAllocationRule.class,
+                                                                                       AdjustConsumerFetchSizeRule.class,
+                                                                                       UseCompressionOnProducerRule.class,
+                                                                                       BatchProducerRule.class)),
+                                                                 new Execution("stats-plus-thread-allocation",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                               List.of(ThreadAllocationRule.class)),
+                                                                 new Execution("stats-plus-fetch-size",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                               List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                 new Execution("stats-plus-compression",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                               List.of(UseCompressionOnProducerRule.class)),
+                                                                 new Execution("stats-plus-batch",
+                                                                               "STATS",
+                                                                               "",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.STATS_MORE_OUTPUT,
+                                                                               List.of(BatchProducerRule.class)),
+                                                                 // RAW - 100
+                                                                 new Execution("raw-1000-warmup", "RAW", "1000", Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE),
+                                                                 new Execution("raw-1000-baseline", "RAW", "1000", Type.VANILLA,
+                                                                               TopologyDefinition.REDUCE),
+                                                                 new Execution("raw-1000-all", "RAW", "1000", Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(ThreadAllocationRule.class,
+                                                                                       AdjustConsumerFetchSizeRule.class,
+                                                                                       UseCompressionOnProducerRule.class,
+                                                                                       BatchProducerRule.class)),
+                                                                 new Execution("raw-1000-thread-allocation",
+                                                                               "RAW",
+                                                                               "1000",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(ThreadAllocationRule.class)),
+                                                                 new Execution("raw-1000-fetch-size",
+                                                                               "RAW",
+                                                                               "1000",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                 new Execution("raw-1000-compression",
+                                                                               "RAW",
+                                                                               "1000",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(UseCompressionOnProducerRule.class)),
+                                                                 new Execution("raw-1000-batch",
+                                                                               "RAW",
+                                                                               "1000",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(BatchProducerRule.class)),
+                                                                 // RAW - 250
+                                                                 new Execution("raw-2500-warmup", "RAW", "2500", Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE),
+                                                                 new Execution("raw-2500-baseline", "RAW", "2500", Type.VANILLA,
+                                                                               TopologyDefinition.REDUCE),
+                                                                 new Execution("raw-2500-all", "RAW", "2500", Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(ThreadAllocationRule.class,
+                                                                                       AdjustConsumerFetchSizeRule.class,
+                                                                                       UseCompressionOnProducerRule.class,
+                                                                                       BatchProducerRule.class)),
+                                                                 new Execution("raw-2500-thread-allocation",
+                                                                               "RAW",
+                                                                               "2500",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(ThreadAllocationRule.class)),
+                                                                 new Execution("raw-2500-fetch-size",
+                                                                               "RAW",
+                                                                               "2500",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                 new Execution("raw-2500-compression",
+                                                                               "RAW",
+                                                                               "2500",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(UseCompressionOnProducerRule.class)),
+                                                                 new Execution("raw-2500-batch",
+                                                                               "RAW",
+                                                                               "2500",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(BatchProducerRule.class)),
+                                                                 // RAW - 500
+                                                                 new Execution("raw-5000-warmup", "RAW", "5000", Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE),
+                                                                 new Execution("raw-5000-baseline", "RAW", "5000", Type.VANILLA,
+                                                                               TopologyDefinition.REDUCE),
+                                                                 new Execution("raw-5000-all", "RAW", "5000", Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(ThreadAllocationRule.class,
+                                                                                       AdjustConsumerFetchSizeRule.class,
+                                                                                       UseCompressionOnProducerRule.class,
+                                                                                       BatchProducerRule.class)),
+                                                                 new Execution("raw-5000-thread-allocation",
+                                                                               "RAW",
+                                                                               "5000",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(ThreadAllocationRule.class)),
+                                                                 new Execution("raw-5000-fetch-size",
+                                                                               "RAW",
+                                                                               "5000",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                 new Execution("raw-5000-compression",
+                                                                               "RAW",
+                                                                               "5000",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(UseCompressionOnProducerRule.class)),
+                                                                 new Execution("raw-5000-batch",
+                                                                               "RAW",
+                                                                               "5000",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.REDUCE,
+                                                                               List.of(BatchProducerRule.class)),
+                                                                 // EXP - 3
+                                                                 new Execution("exp-3-warmup", "RAW", "100", Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_3X),
+                                                                 new Execution("exp-3-baseline", "RAW", "100", Type.VANILLA,
+                                                                               TopologyDefinition.EXPAND_3X),
+                                                                 new Execution("exp-3-all", "RAW", "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_3X,
+                                                                               List.of(ThreadAllocationRule.class,
+                                                                                       AdjustConsumerFetchSizeRule.class,
+                                                                                       UseCompressionOnProducerRule.class,
+                                                                                       BatchProducerRule.class)),
+                                                                 new Execution("exp-3-thread-allocation",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_3X,
+                                                                               List.of(ThreadAllocationRule.class)),
+                                                                 new Execution("exp-3-fetch-size",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_3X,
+                                                                               List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                 new Execution("exp-3-compression",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_3X,
+                                                                               List.of(UseCompressionOnProducerRule.class)),
+                                                                 new Execution("exp-3-batch",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_3X,
+                                                                               List.of(BatchProducerRule.class)),
+                                                                 // RAW - 250
+                                                                 new Execution("exp-5-warmup", "RAW", "100", Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_5X),
+                                                                 new Execution("exp-5-baseline", "RAW", "100", Type.VANILLA,
+                                                                               TopologyDefinition.EXPAND_5X),
+                                                                 new Execution("exp-5-all", "RAW", "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_5X,
+                                                                               List.of(ThreadAllocationRule.class,
+                                                                                       AdjustConsumerFetchSizeRule.class,
+                                                                                       UseCompressionOnProducerRule.class,
+                                                                                       BatchProducerRule.class)),
+                                                                 new Execution("exp-5-thread-allocation",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_5X,
+                                                                               List.of(ThreadAllocationRule.class)),
+                                                                 new Execution("exp-5-fetch-size",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_5X,
+                                                                               List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                 new Execution("exp-5-compression",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_5X,
+                                                                               List.of(UseCompressionOnProducerRule.class)),
+                                                                 new Execution("exp-5-batch",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_5X,
+                                                                               List.of(BatchProducerRule.class)),
+                                                                 // RAW - 500
+                                                                 new Execution("exp-7-warmup", "RAW", "100", Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_7X),
+                                                                 new Execution("exp-7-baseline", "RAW", "100", Type.VANILLA,
+                                                                               TopologyDefinition.EXPAND_7X),
+                                                                 new Execution("exp-7-all", "RAW", "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_7X,
+                                                                               List.of(ThreadAllocationRule.class,
+                                                                                       AdjustConsumerFetchSizeRule.class,
+                                                                                       UseCompressionOnProducerRule.class,
+                                                                                       BatchProducerRule.class)),
+                                                                 new Execution("exp-7-thread-allocation",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_7X,
+                                                                               List.of(ThreadAllocationRule.class)),
+                                                                 new Execution("exp-7-fetch-size",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_7X,
+                                                                               List.of(AdjustConsumerFetchSizeRule.class)),
+                                                                 new Execution("exp-7-compression",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_7X,
+                                                                               List.of(UseCompressionOnProducerRule.class)),
+                                                                 new Execution("exp-7-batch",
+                                                                               "RAW",
+                                                                               "100",
+                                                                               Type.ADAPTIVE,
+                                                                               TopologyDefinition.EXPAND_7X,
+                                                                               List.of(BatchProducerRule.class))
+    };
+
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
         sleep(Duration.ofSeconds(5));
         COMMAND.startConnection("producer", 7777);
         // base stats
-        Stream.of(new Execution("stats-simple-warmup", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS),
-                  new Execution("stats-simple-baseline", "STATS", "", Type.VANILLA, TopologyDefinition.STATS),
-                  new Execution("stats-simple-all", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS, List.of(ThreadAllocationRule.class,
-                                                                                                                 AdjustConsumerFetchSizeRule.class,
-                                                                                                                 UseCompressionOnProducerRule.class,
-                                                                                                                 BatchProducerRule.class)),
-                  new Execution("stats-simple-thread-allocation", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS, List.of(ThreadAllocationRule.class)),
-                  new Execution("stats-simple-fetch-size", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS, List.of(AdjustConsumerFetchSizeRule.class)),
-                  new Execution("stats-simple-compression", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("stats-simple-batch", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS, List.of(BatchProducerRule.class)),
-                  // Stats with more topics
-                  new Execution("stats-plus-warmup", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS_MORE_OUTPUT),
-                  new Execution("stats-plus-baseline", "STATS", "", Type.VANILLA, TopologyDefinition.STATS_MORE_OUTPUT),
-                  new Execution("stats-plus-all", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS_MORE_OUTPUT, List.of(ThreadAllocationRule.class,
-                                                                                                                           AdjustConsumerFetchSizeRule.class,
-                                                                                                                           UseCompressionOnProducerRule.class,
-                                                                                                                           BatchProducerRule.class)),
-                  new Execution("stats-plus-thread-allocation", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS_MORE_OUTPUT, List.of(ThreadAllocationRule.class)),
-                  new Execution("stats-plus-fetch-size", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS_MORE_OUTPUT, List.of(AdjustConsumerFetchSizeRule.class)),
-                  new Execution("stats-plus-compression", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS_MORE_OUTPUT, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("stats-plus-batch", "STATS", "", Type.ADAPTIVE, TopologyDefinition.STATS_MORE_OUTPUT, List.of(BatchProducerRule.class)),
-                  // RAW - 100
-                  new Execution("raw-1000-warmup", "RAW", "1000", Type.ADAPTIVE, TopologyDefinition.REDUCE),
-                  new Execution("raw-1000-baseline", "RAW", "1000", Type.VANILLA, TopologyDefinition.REDUCE),
-                  new Execution("raw-1000-all", "RAW", "1000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(ThreadAllocationRule.class,
-                                                                                                                   AdjustConsumerFetchSizeRule.class,
-                                                                                                                   UseCompressionOnProducerRule.class,
-                                                                                                                   BatchProducerRule.class)),
-                  new Execution("raw-1000-thread-allocation", "RAW", "1000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(ThreadAllocationRule.class)),
-                  new Execution("raw-1000-fetch-size", "RAW", "1000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(AdjustConsumerFetchSizeRule.class)),
-                  new Execution("raw-1000-compression", "RAW", "1000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("raw-1000-batch", "RAW", "1000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(BatchProducerRule.class)),
-                  // RAW - 250
-                  new Execution("raw-2500-warmup", "RAW", "2500", Type.ADAPTIVE, TopologyDefinition.REDUCE),
-                  new Execution("raw-2500-baseline", "RAW", "2500", Type.VANILLA, TopologyDefinition.REDUCE),
-                  new Execution("raw-2500-all", "RAW", "2500", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(ThreadAllocationRule.class,
-                                                                                                                   AdjustConsumerFetchSizeRule.class,
-                                                                                                                   UseCompressionOnProducerRule.class,
-                                                                                                                   BatchProducerRule.class)),
-                  new Execution("raw-2500-thread-allocation", "RAW", "2500", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(ThreadAllocationRule.class)),
-                  new Execution("raw-2500-fetch-size", "RAW", "2500", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(AdjustConsumerFetchSizeRule.class)),
-                  new Execution("raw-2500-compression", "RAW", "2500", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("raw-2500-batch", "RAW", "2500", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(BatchProducerRule.class)),
-                  // RAW - 500
-                  new Execution("raw-5000-warmup", "RAW", "5000", Type.ADAPTIVE, TopologyDefinition.REDUCE),
-                  new Execution("raw-5000-baseline", "RAW", "5000", Type.VANILLA, TopologyDefinition.REDUCE),
-                  new Execution("raw-5000-all", "RAW", "5000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(ThreadAllocationRule.class,
-                                                                                                                   AdjustConsumerFetchSizeRule.class,
-                                                                                                                   UseCompressionOnProducerRule.class,
-                                                                                                                   BatchProducerRule.class)),
-                  new Execution("raw-5000-thread-allocation", "RAW", "5000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(ThreadAllocationRule.class)),
-                  new Execution("raw-5000-fetch-size", "RAW", "5000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(AdjustConsumerFetchSizeRule.class)),
-                  new Execution("raw-5000-compression", "RAW", "5000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("raw-5000-batch", "RAW", "5000", Type.ADAPTIVE, TopologyDefinition.REDUCE, List.of(BatchProducerRule.class)),
-                  // EXP - 3
-                  new Execution("exp-3-warmup", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_3X),
-                  new Execution("exp-3-baseline", "RAW", "100", Type.VANILLA, TopologyDefinition.EXPAND_3X),
-                  new Execution("exp-3-all", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_3X, List.of(ThreadAllocationRule.class,
-                                                                                                                   AdjustConsumerFetchSizeRule.class,
-                                                                                                                   UseCompressionOnProducerRule.class,
-                                                                                                                   BatchProducerRule.class)),
-                  new Execution("exp-3-thread-allocation", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_3X, List.of(ThreadAllocationRule.class)),
-                  new Execution("exp-3-fetch-size", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_3X, List.of(AdjustConsumerFetchSizeRule.class)),
-                  new Execution("exp-3-compression", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_3X, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("exp-3-batch", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_3X, List.of(BatchProducerRule.class)),
-                  // RAW - 250
-                  new Execution("exp-5-warmup", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_5X),
-                  new Execution("exp-5-baseline", "RAW", "100", Type.VANILLA, TopologyDefinition.EXPAND_5X),
-                  new Execution("exp-5-all", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_5X, List.of(ThreadAllocationRule.class,
-                                                                                                                   AdjustConsumerFetchSizeRule.class,
-                                                                                                                   UseCompressionOnProducerRule.class,
-                                                                                                                   BatchProducerRule.class)),
-                  new Execution("exp-5-thread-allocation", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_5X, List.of(ThreadAllocationRule.class)),
-                  new Execution("exp-5-fetch-size", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_5X, List.of(AdjustConsumerFetchSizeRule.class)),
-                  new Execution("exp-5-compression", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_5X, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("exp-5-batch", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_5X, List.of(BatchProducerRule.class)),
-                  // RAW - 500
-                  new Execution("exp-7-warmup", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_7X),
-                  new Execution("exp-7-baseline", "RAW", "100", Type.VANILLA, TopologyDefinition.EXPAND_7X),
-                  new Execution("exp-7-all", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_7X, List.of(ThreadAllocationRule.class,
-                                                                                                                   AdjustConsumerFetchSizeRule.class,
-                                                                                                                   UseCompressionOnProducerRule.class,
-                                                                                                                   BatchProducerRule.class)),
-                  new Execution("exp-7-thread-allocation", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_7X, List.of(ThreadAllocationRule.class)),
-                  new Execution("exp-7-fetch-size", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_7X, List.of(AdjustConsumerFetchSizeRule.class)),
-                  new Execution("exp-7-compression", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_7X, List.of(UseCompressionOnProducerRule.class)),
-                  new Execution("exp-7-batch", "RAW", "100", Type.ADAPTIVE, TopologyDefinition.EXPAND_7X, List.of(BatchProducerRule.class)))
-              .forEachOrdered(Execution::exec);
+        IntStream.range(1, 6)
+                 .forEach(index -> Stream.of(PAPER_SCENARIOS)
+                                         .map(exec -> new Execution(exec, index))
+                                         .forEachOrdered(Execution::exec));
         COMMAND.sendCommand(Command.DONE);
     }
 
@@ -283,16 +586,18 @@ public class StreamPerformanceEvaluation implements Runnable {
     private final String testId;
     private final TopologyDefinition topology;
     private final List<Class<? extends AdapterRule>> adapterRules;
+    private final int round;
 
     public StreamPerformanceEvaluation(Type type, String testId, TopologyDefinition topology) {
-        this(type, testId, topology, null);
+        this(type, testId, topology, null, 1);
     }
 
-    public StreamPerformanceEvaluation(Type type, String testId, TopologyDefinition topology, List<Class<? extends AdapterRule>> adapterRules) {
+    public StreamPerformanceEvaluation(Type type, String testId, TopologyDefinition topology, List<Class<? extends AdapterRule>> adapterRules, int round) {
         this.type = type;
         this.testId = testId;
         this.topology = topology;
         this.adapterRules = adapterRules;
+        this.round = round;
     }
 
     @Override
@@ -312,7 +617,13 @@ public class StreamPerformanceEvaluation implements Runnable {
         props.put(StreamsConfig.REQUEST_TIMEOUT_MS_CONFIG, 40000 * 3); // 3 times
         props.put(StreamsConfig.producerPrefix(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG), (40000 * 3) + 100); // 3 times
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 2);
-        props.put("metrics.stats.folder", Paths.get(System.getenv("STATS_FOLDER"), testId).toAbsolutePath().toString());
+        // setup the tests to execute per 5 minutes and collect metrics every 10s
+        props.put(AdaptiveConfigs.ADAPTIVE_ADAPTER_FREQUENCY_MS_CONFIG, Duration.ofSeconds(30).toMillis());
+        props.put(AdaptiveConfigs.ADAPTIVE_ADAPTER_HISTORY_SIZE_MIN_CONFIG, (int) (Duration.ofMinutes(TEST_DURATION_IN_MINUTES)
+                                                                                           .dividedBy(AdaptiveConfigs.DEFAULT_METRICS_COLLECTION_FREQUENCY)
+                / 2) - 1);
+        props.put(AdaptiveConfigs.ADAPTIVE_METRICS_COLLECTOR_FREQUENCY_MS_CONFIG, Duration.ofSeconds(1).toMillis());
+        props.put("metrics.stats.folder", Paths.get(System.getenv("STATS_FOLDER"), "%s_%d".formatted(testId, round)).toAbsolutePath().toString());
         props.put(StreamsConfig.STATE_DIR_CONFIG, "/opt/" + testId + "/state");
         if (Objects.nonNull(adapterRules)) {
             props.put(AdaptiveConfigs.ADAPTER_RULE_CLASSES_CONFIG, adapterRules);
@@ -388,7 +699,7 @@ public class StreamPerformanceEvaluation implements Runnable {
         @Override
         public void process(Record<Integer, TaxiTrip> value) {
             long windowStart = value.timestamp() - (value.timestamp() % duration.toMillis());
-            try(var stats = store.fetch(value.key(), windowStart, windowStart)) {
+            try (var stats = store.fetch(value.key(), windowStart, windowStart)) {
                 var currentStats = stats.hasNext() ? stats.next().value : TripStats.initializer();
                 var updatedStats = currentStats.add(value.value());
                 // Store with window timestamp
@@ -399,7 +710,7 @@ public class StreamPerformanceEvaluation implements Runnable {
     }
 
     private Topology buildTopology() {
-        return switch(topology) {
+        return switch (topology) {
             case STATS -> buildStatsTopology();
             case STATS_MORE_OUTPUT -> buildStatsMoreOutputTopology();
             case REDUCE -> buildReduceTopology();
@@ -434,28 +745,28 @@ public class StreamPerformanceEvaluation implements Runnable {
                 // Map to original coordinates with sub-pixel precision
                 double originalI = (double) i / factor;
                 double originalJ = (double) j / factor;
-                
+
                 // Get the four surrounding pixels
                 int i1 = (int) Math.floor(originalI);
                 int j1 = (int) Math.floor(originalJ);
                 int i2 = Math.min(i1 + 1, inputSize - 1);
                 int j2 = Math.min(j1 + 1, inputSize - 1);
-                
+
                 // Calculate fractional parts
                 double fracI = originalI - i1;
                 double fracJ = originalJ - j1;
-                
+
                 // Get the four pixel values (convert to int for calculation)
                 int p11 = inputImage[i1 * inputSize + j1] & 0xFF;
                 int p21 = inputImage[i1 * inputSize + j2] & 0xFF;
                 int p12 = inputImage[i2 * inputSize + j1] & 0xFF;
                 int p22 = inputImage[i2 * inputSize + j2] & 0xFF;
-                
+
                 // Bilinear interpolation
                 double top = p11 * (1 - fracJ) + p21 * fracJ;
                 double bottom = p12 * (1 - fracJ) + p22 * fracJ;
                 double interpolated = top * (1 - fracI) + bottom * fracI;
-                
+
                 // Convert back to byte and clamp to 0-255
                 byte result = (byte) Math.max(0, Math.min(255, Math.round(interpolated)));
                 newImage[i * outputSize + j] = result;
@@ -507,7 +818,7 @@ public class StreamPerformanceEvaluation implements Runnable {
     }
 
     private byte[] createEmpty16x16Image() {
-       return new byte[16 * 16]; // All zeros
+        return new byte[16 * 16]; // All zeros
     }
 
     private String md5Hash(byte[] data) {
@@ -524,36 +835,36 @@ public class StreamPerformanceEvaluation implements Runnable {
         var builder = new StreamsBuilder();
         builder.stream(Topics.RAW_DATA_INPUT.topicName(), Consumed.with(Serdes.ByteArray(), Serdes.ByteArray()))
                .mapValues(input -> {
-                     if (input == null) {
-                        return createEmpty16x16Image();
-                    }
+                   if (input == null) {
+                       return createEmpty16x16Image();
+                   }
 
-                    try {
-                        return resizeTo16x16(input);
-                    } catch (Exception e) {
-                        // Log error and return empty image
-                        logger.error("Error resizing image!", e);
-                        return createEmpty16x16Image();
-                    }
-                })
+                   try {
+                       return resizeTo16x16(input);
+                   } catch (Exception e) {
+                       // Log error and return empty image
+                       logger.error("Error resizing image!", e);
+                       return createEmpty16x16Image();
+                   }
+               })
                .selectKey((key, value) -> md5Hash(value))
                .to(Topics.RAW_DATA_OUTPUT.topicName(), Produced.with(Serdes.String(), Serdes.ByteArray()));
         return builder.build();
     }
 
-        private Topology buildExpandTopology(int factor) {
+    private Topology buildExpandTopology(int factor) {
         var builder = new StreamsBuilder();
         builder.stream(Topics.RAW_DATA_INPUT.topicName(), Consumed.with(Serdes.ByteArray(), Serdes.ByteArray()))
-               .filter((key, value) -> Objects.nonNull(value)) 
+               .filter((key, value) -> Objects.nonNull(value))
                .mapValues(input -> {
-                    try {
-                        return expandTo(input, factor);
-                    } catch (Exception e) {
-                        // Log error and return empty image
-                        logger.error("Error resizing image!", e);
-                        return createEmpty16x16Image();
-                    }
-                })
+                   try {
+                       return expandTo(input, factor);
+                   } catch (Exception e) {
+                       // Log error and return empty image
+                       logger.error("Error resizing image!", e);
+                       return createEmpty16x16Image();
+                   }
+               })
                .selectKey((key, value) -> md5Hash(value))
                .to(Topics.RAW_DATA_OUTPUT.topicName(), Produced.with(Serdes.String(), Serdes.ByteArray()));
         return builder.build();
@@ -568,31 +879,36 @@ public class StreamPerformanceEvaluation implements Runnable {
         var statsStoreBuilder = Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_PU_STATS_STORE.topicName(),
                                                                                        retentionPeriod,
                                                                                        windowSize,
-                                                                      false),
+                                                                                       false),
                                                           Serdes.Integer(),
                                                           JsonSerde.of(TripStats.class));
         builder.addStateStore(statsStoreBuilder);
         var taxiDataStream = builder.stream(Topics.NYC_TAXI_TRIPS.topicName(), Consumed.with(Serdes.String(), JsonSerde.of(TaxiTrip.class))
-                                    .withTimestampExtractor((record, partitionTime) -> {
-                                        if (record.value() instanceof TaxiTrip tt) {
-                                            return tt.dropTimestamp();
-                                        } else {
-                                            logger.warn("Wrong input value! record={}", record);
-                                            return partitionTime;
-                                        }
-                                    }));
+                                                                                       .withTimestampExtractor((record, partitionTime) -> {
+                                                                                           if (record.value() instanceof TaxiTrip tt) {
+                                                                                               return tt.dropTimestamp();
+                                                                                           } else {
+                                                                                               logger.warn("Wrong input value! record={}", record);
+                                                                                               return partitionTime;
+                                                                                           }
+                                                                                       }));
         var formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         var zone = ZoneId.of("America/New_York");
         taxiDataStream.selectKey((key, value) -> value.puLocationID())
-                      .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
+                      .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class))
+                                                .withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
                       .process(() -> new TripStatsAggregator(Topics.NYC_TAXI_PU_STATS_STORE.topicName()), Topics.NYC_TAXI_PU_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
-                      .branch((key, stats) -> stats instanceof FareStats, Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)
-                                                                                                                                  .to(Topics.NYC_TAXI_DASHBOARD_FARE.topicName(), Produced.with(Serdes.String(), JsonSerde.of(FareStats.class)))))
-                      .branch((key, stats) -> stats instanceof TipStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (TipStats) stats)
-                                                                                                                                 .to(Topics.NYC_TAXI_DASHBOARD_TIPS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(TipStats.class)))))
+                      .branch((key, stats) -> stats instanceof FareStats,
+                              Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)
+                                                                                      .to(Topics.NYC_TAXI_DASHBOARD_FARE.topicName(),
+                                                                                          Produced.with(Serdes.String(), JsonSerde.of(FareStats.class)))))
+                      .branch((key, stats) -> stats instanceof TipStats,
+                              Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (TipStats) stats)
+                                                                                      .to(Topics.NYC_TAXI_DASHBOARD_TIPS.topicName(),
+                                                                                          Produced.with(Serdes.String(), JsonSerde.of(TipStats.class)))))
                       .noDefaultBranch();
         return builder.build();
     }
@@ -604,53 +920,67 @@ public class StreamPerformanceEvaluation implements Runnable {
         var retentionPeriod = windowSize.plus(gracePeriod).plus(Duration.ofMinutes(15)); // Clean up old data
         var builder = new StreamsBuilder();
         builder.addStateStore(Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_PU_STATS_STORE.topicName(),
-                                                                                       retentionPeriod,
-                                                                                       windowSize,
-                                                                      false),
-                                                          Serdes.Integer(),
-                                                          JsonSerde.of(TripStats.class)))
+                                                                                     retentionPeriod,
+                                                                                     windowSize,
+                                                                                     false),
+                                                        Serdes.Integer(),
+                                                        JsonSerde.of(TripStats.class)))
                .addStateStore(Stores.windowStoreBuilder(Stores.persistentWindowStore(Topics.NYC_TAXI_DO_STATS_STORE.topicName(),
-                                                                                       retentionPeriod,
-                                                                                       windowSize,
-                                                                      false),
-                                                          Serdes.Integer(),
-                                                          JsonSerde.of(TripStats.class)));
+                                                                                     retentionPeriod,
+                                                                                     windowSize,
+                                                                                     false),
+                                                        Serdes.Integer(),
+                                                        JsonSerde.of(TripStats.class)));
         var taxiDataStream = builder.stream(Topics.NYC_TAXI_TRIPS.topicName(), Consumed.with(Serdes.String(), JsonSerde.of(TaxiTrip.class))
-                                    .withTimestampExtractor((record, partitionTime) -> {
-                                        if (record.value() instanceof TaxiTrip tt) {
-                                            return tt.dropTimestamp();
-                                        } else {
-                                            logger.warn("Wrong input value! record={}", record);
-                                            return partitionTime;
-                                        }
-                                    }));
+                                                                                       .withTimestampExtractor((record, partitionTime) -> {
+                                                                                           if (record.value() instanceof TaxiTrip tt) {
+                                                                                               return tt.dropTimestamp();
+                                                                                           } else {
+                                                                                               logger.warn("Wrong input value! record={}", record);
+                                                                                               return partitionTime;
+                                                                                           }
+                                                                                       }));
         var formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         var zone = ZoneId.of("America/New_York");
         taxiDataStream.selectKey((key, value) -> value.puLocationID())
-                      .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
+                      .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class))
+                                                .withName(Topics.NYC_TAXI_TRIPS_BY_PU_LOCATION_ID.topicName()))
                       .process(() -> new TripStatsAggregator(Topics.NYC_TAXI_PU_STATS_STORE.topicName()), Topics.NYC_TAXI_PU_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("pu-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
-                      .branch((key, stats) -> stats instanceof FareStats, Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)
-                                                                                                                                  .to(Topics.NYC_TAXI_DASHBOARD_FARE.topicName(), Produced.with(Serdes.String(), JsonSerde.of(FareStats.class)))))
-                      .branch((key, stats) -> stats instanceof TipStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (TipStats) stats)
-                                                                                                                                 .to(Topics.NYC_TAXI_DASHBOARD_TIPS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(TipStats.class)))))
-                      .branch((key, stats) -> stats instanceof PassengerStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (PassengerStats) stats)
-                                                                                                                                       .to(Topics.NYC_TAXI_DASHBOARD_PASSENGERS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(PassengerStats.class)))))
+                      .branch((key, stats) -> stats instanceof FareStats,
+                              Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)
+                                                                                      .to(Topics.NYC_TAXI_DASHBOARD_FARE.topicName(),
+                                                                                          Produced.with(Serdes.String(), JsonSerde.of(FareStats.class)))))
+                      .branch((key, stats) -> stats instanceof TipStats,
+                              Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (TipStats) stats)
+                                                                                      .to(Topics.NYC_TAXI_DASHBOARD_TIPS.topicName(),
+                                                                                          Produced.with(Serdes.String(), JsonSerde.of(TipStats.class)))))
+                      .branch((key, stats) -> stats instanceof PassengerStats,
+                              Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (PassengerStats) stats)
+                                                                                      .to(Topics.NYC_TAXI_DASHBOARD_PASSENGERS.topicName(),
+                                                                                          Produced.with(Serdes.String(), JsonSerde.of(PassengerStats.class)))))
                       .noDefaultBranch();
         taxiDataStream.selectKey((key, value) -> value.doLocationID())
-                      .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class)).withName(Topics.NYC_TAXI_TRIPS_BY_DO_LOCATION_ID.topicName()))
+                      .repartition(Repartitioned.with(Serdes.Integer(), JsonSerde.of(TaxiTrip.class))
+                                                .withName(Topics.NYC_TAXI_TRIPS_BY_DO_LOCATION_ID.topicName()))
                       .process(() -> new TripStatsAggregator(Topics.NYC_TAXI_DO_STATS_STORE.topicName()), Topics.NYC_TAXI_DO_STATS_STORE.topicName())
                       .selectKey((key, value) -> String.format("do-%d-%s", key, formatter.format(Instant.ofEpochMilli(value.windowStart()).atZone(zone))))
                       .flatMapValues(stats -> List.of(stats.toFare(), stats.toTip(), stats.toPassangers()))
                       .split()
-                      .branch((key, stats) -> stats instanceof FareStats, Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)
-                                                                                                                                  .to(Topics.NYC_TAXI_DASHBOARD_FARE.topicName(), Produced.with(Serdes.String(), JsonSerde.of(FareStats.class)))))
-                      .branch((key, stats) -> stats instanceof TipStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (TipStats) stats)
-                                                                                                                                 .to(Topics.NYC_TAXI_DASHBOARD_TIPS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(TipStats.class)))))
-                      .branch((key, stats) -> stats instanceof PassengerStats, Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (PassengerStats) stats)
-                                                                                                                                       .to(Topics.NYC_TAXI_DASHBOARD_PASSENGERS.topicName(), Produced.with(Serdes.String(), JsonSerde.of(PassengerStats.class)))))
+                      .branch((key, stats) -> stats instanceof FareStats,
+                              Branched.withConsumer(fareStatsStream -> fareStatsStream.mapValues(stats -> (FareStats) stats)
+                                                                                      .to(Topics.NYC_TAXI_DASHBOARD_FARE.topicName(),
+                                                                                          Produced.with(Serdes.String(), JsonSerde.of(FareStats.class)))))
+                      .branch((key, stats) -> stats instanceof TipStats,
+                              Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (TipStats) stats)
+                                                                                      .to(Topics.NYC_TAXI_DASHBOARD_TIPS.topicName(),
+                                                                                          Produced.with(Serdes.String(), JsonSerde.of(TipStats.class)))))
+                      .branch((key, stats) -> stats instanceof PassengerStats,
+                              Branched.withConsumer(tipStatsStreams -> tipStatsStreams.mapValues(stats -> (PassengerStats) stats)
+                                                                                      .to(Topics.NYC_TAXI_DASHBOARD_PASSENGERS.topicName(),
+                                                                                          Produced.with(Serdes.String(), JsonSerde.of(PassengerStats.class)))))
                       .noDefaultBranch();
         return builder.build();
     }

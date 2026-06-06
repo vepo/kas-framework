@@ -13,7 +13,7 @@ public class ThreadAllocationRule implements AdapterRule {
     @Override
     public StreamsContext evaluate(StreamsContext context, RequiredChanges changes) {
         logger.info("Evaluating rule... throughput={}", context.throughput());
-        if(context.throughput() == ThroughputState.UNSUSTAINABLE) {
+        if (context.throughput() == ThroughputState.UNSUSTAINABLE) {
             var activeThreads = context.threadNumber();
             var averageCpuUsage = context.cpuUsage();
             var averageMemoryUsage = context.memoryUsage();

@@ -48,22 +48,23 @@ class StreamsHealthyMetricsTest {
             metrics.configure(configs);
 
             await().pollInterval(50, TimeUnit.MILLISECONDS)
-                    .atMost(200, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> {
-                        verify(mockAdapter, times(1))
-                                .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("cpu-used")));
-                        verify(mockAdapter, times(1))
-                                .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("cpu-total")));
-                        verify(mockAdapter, times(1))
-                                .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("memory-used")));
-                        verify(mockAdapter, times(1))
-                                .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("memory-total")));
-                    });
+                   .atMost(200, TimeUnit.MILLISECONDS)
+                   .untilAsserted(() -> {
+                       verify(mockAdapter, times(1))
+                                                    .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("cpu-used")));
+                       verify(mockAdapter, times(1))
+                                                    .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("cpu-total")));
+                       verify(mockAdapter, times(1))
+                                                    .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("memory-used")));
+                       verify(mockAdapter, times(1))
+                                                    .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("memory-total")));
+                   });
         }
     }
 
     @ParameterizedTest
-    @ValueSource(strings = { "-admin", "-producer", "-consumer" })
+    @ValueSource(strings = { "-admin", "-producer", "-consumer"
+    })
     @DisplayName("The producer reporter need to collect JVM metrics {index} {0}")
     void otherReporterTest(String clientIdSuffix) {
         try (var metrics = new StreamsHealthyMetrics()) {
@@ -76,17 +77,17 @@ class StreamsHealthyMetricsTest {
             metrics.configure(configs);
 
             await().pollInterval(50, TimeUnit.MILLISECONDS)
-                    .atMost(200, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> {
-                        verify(mockAdapter, never())
-                                .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("cpu-used")));
-                        verify(mockAdapter, never())
-                                .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("cpu-total")));
-                        verify(mockAdapter, never())
-                                .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("memory-used")));
-                        verify(mockAdapter, never())
-                                .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("memory-total")));
-                    });
+                   .atMost(200, TimeUnit.MILLISECONDS)
+                   .untilAsserted(() -> {
+                       verify(mockAdapter, never())
+                                                   .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("cpu-used")));
+                       verify(mockAdapter, never())
+                                                   .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("cpu-total")));
+                       verify(mockAdapter, never())
+                                                   .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("memory-used")));
+                       verify(mockAdapter, never())
+                                                   .feed(argThat(m -> m.context() == Context.JVM && m.name().equals("memory-total")));
+                   });
         }
     }
 
@@ -98,7 +99,7 @@ class StreamsHealthyMetricsTest {
 
     private MetricName recordLagName(String topic, int partition) {
         return new MetricName("records-lag", "consumer-fetch-manager-metrics", "",
-                Map.of("topic", topic, "partition", String.valueOf(partition)));
+                              Map.of("topic", topic, "partition", String.valueOf(partition)));
     }
 
     @Test
@@ -115,15 +116,15 @@ class StreamsHealthyMetricsTest {
 
             var lock = new Object();
             mReporter.init(List.of(new KafkaMetric(lock, recordLagName("test-topic", 0), value(5), null, Time.SYSTEM),
-                    new KafkaMetric(lock, recordLagName("test-topic", 1), value(10), null, Time.SYSTEM),
-                    new KafkaMetric(lock, recordLagName("test-topic", 2), value(15), null, Time.SYSTEM)));
+                                   new KafkaMetric(lock, recordLagName("test-topic", 1), value(10), null, Time.SYSTEM),
+                                   new KafkaMetric(lock, recordLagName("test-topic", 2), value(15), null, Time.SYSTEM)));
 
             await().pollInterval(50, TimeUnit.MILLISECONDS)
-                    .atMost(190, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> verify(mockAdapter, times(3))
-                            .feed(argThat(
-                                    m -> m.context() == Context.PARTITION && m.name().equals("records-lag")
-                                            && m.topic().equals("test-topic"))));
+                   .atMost(190, TimeUnit.MILLISECONDS)
+                   .untilAsserted(() -> verify(mockAdapter, times(3))
+                                                                     .feed(argThat(
+                                                                                   m -> m.context() == Context.PARTITION && m.name().equals("records-lag")
+                                                                                           && m.topic().equals("test-topic"))));
         }
     }
 }

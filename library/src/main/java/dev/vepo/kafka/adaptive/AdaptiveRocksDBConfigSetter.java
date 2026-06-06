@@ -17,6 +17,7 @@ public class AdaptiveRocksDBConfigSetter implements RocksDBConfigSetter {
     private static final Logger logger = LoggerFactory.getLogger(AdaptiveRocksDBConfigSetter.class);
     private static final AtomicInteger databaseCounter = new AtomicInteger(0);
     private static final EnvironmentMetrics metrics = new EnvironmentMetrics();
+
     @Override
     public void setConfig(String storeName, Options options, Map<String, Object> configs) {
         var counter = databaseCounter.incrementAndGet();
@@ -27,7 +28,7 @@ public class AdaptiveRocksDBConfigSetter implements RocksDBConfigSetter {
     }
 
     @Override
-    public void close(String storeName, Options options) {        
+    public void close(String storeName, Options options) {
         var counter = databaseCounter.decrementAndGet();
         logger.info("Closing rocksDB... open={} used writeBuffer={}", counter, formatMemory(options.writeBufferSize() * counter));
         options.close();

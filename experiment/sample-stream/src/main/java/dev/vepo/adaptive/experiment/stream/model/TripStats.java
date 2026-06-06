@@ -2,37 +2,37 @@ package dev.vepo.adaptive.experiment.stream.model;
 
 import java.time.Instant;
 
-public record TripStats(long windowStart, 
-                        long windowEnd, 
-                        int totalTrips, 
+public record TripStats(long windowStart,
+                        long windowEnd,
+                        int totalTrips,
                         double averagePassangerCount,
-                        double totalRevenue, 
+                        double totalRevenue,
                         double averageFare,
                         double averageDistance,
                         double averageDuration,
                         double averageToll,
-                        int lowTipCounter, 
+                        int lowTipCounter,
                         int highTipCounter,
-                        int negativeTipCounter, 
+                        int negativeTipCounter,
                         int noTipCounter) {
 
     public static TripStats initializer() {
         return new TripStats(Instant.now().toEpochMilli(),
-                            Instant.now().toEpochMilli(),
-                            0,
-                            0.0, 
-                            0.0, 
-                            0.0, 
-                            0.0, 
-                            0.0, 
-                            0.0,
-                            0,
-                            0,
-                            0,
-                            0);
+                             Instant.now().toEpochMilli(),
+                             0,
+                             0.0,
+                             0.0,
+                             0.0,
+                             0.0,
+                             0.0,
+                             0.0,
+                             0,
+                             0,
+                             0,
+                             0);
     }
 
-    public TripStats add(TaxiTrip trip) {
+    public TripStats add(TaxiTrip trip, Number x) {        
         var tipPercentualValue = (trip.tipAmount() / trip.fareAmount()) * 100;
         return new TripStats(windowStart,
                              windowEnd,
@@ -67,13 +67,13 @@ public record TripStats(long windowStart,
 
     public FareStats toFare() {
         return new FareStats(this.windowStart,
-                            this.windowEnd,
-                            this.totalTrips,
-                            this.totalRevenue,
-                            this.averageFare,
-                            this.averageToll,
-                            this.averageDistance,
-                            this.averageDuration);
+                             this.windowEnd,
+                             this.totalTrips,
+                             this.totalRevenue,
+                             this.averageFare,
+                             this.averageToll,
+                             this.averageDistance,
+                             this.averageDuration);
     }
 
     public TipStats toTip() {
@@ -90,11 +90,11 @@ public record TripStats(long windowStart,
 
     public PassengerStats toPassangers() {
         return new PassengerStats(this.windowStart,
-                            this.windowEnd,
-                            this.totalTrips,
-                            this.averagePassangerCount, 
-                            this.averageFare,
-                            this.averageDistance,
-                            this.averageDuration);
-    }    
+                                  this.windowEnd,
+                                  this.totalTrips,
+                                  this.averagePassangerCount,
+                                  this.averageFare,
+                                  this.averageDistance,
+                                  this.averageDuration);
+    }
 }

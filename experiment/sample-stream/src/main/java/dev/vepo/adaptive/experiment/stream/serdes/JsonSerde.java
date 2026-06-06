@@ -50,6 +50,7 @@ public class JsonSerde<T> implements Serde<T> {
     public static <T> JsonSerde<T> of(Class<T> serderClass) {
         return new JsonSerde<>(serderClass);
     }
+
     private final ObjectReader reader;
     private final ObjectWriter writer;
     private final JsonSerde<T>.ObjectSerializer serializer;

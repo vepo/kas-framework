@@ -1,24 +1,19 @@
 package dev.vepo.kafka.adaptive.adapter.stats;
 
-public sealed interface StatsKey permits StatsKey.PartitionStatsKey, 
-                                          StatsKey.JvmStatsKey, 
-                                          StatsKey.ClientStatsKey, 
-                                          StatsKey.BrokerStatsKey, 
-                                          StatsKey.TopicStatsKey {
-    public final record PartitionStatsKey(String name, String topic, int partition) implements StatsKey {
-    }
+public sealed interface StatsKey permits StatsKey.PartitionStatsKey,
+        StatsKey.JvmStatsKey,
+        StatsKey.ClientStatsKey,
+        StatsKey.BrokerStatsKey,
+        StatsKey.TopicStatsKey {
+    public final record PartitionStatsKey(String name, String topic, int partition) implements StatsKey {}
 
-    public final record JvmStatsKey(String name) implements StatsKey {
-    }
+    public final record JvmStatsKey(String name) implements StatsKey {}
 
-    public final record BrokerStatsKey(String name) implements StatsKey {
-    }
+    public final record BrokerStatsKey(String name) implements StatsKey {}
 
-    public final record TopicStatsKey(String name, String topic, boolean broker, String clientId) implements StatsKey {
-    }
+    public final record TopicStatsKey(String name, String topic, boolean broker, String clientId) implements StatsKey {}
 
-    public final record ClientStatsKey(String name, String clientId) implements StatsKey {
-    }
+    public final record ClientStatsKey(String name, String clientId) implements StatsKey {}
 
     public static StatsKey partition(String name, String topic, int partition) {
         return new PartitionStatsKey(name, topic, partition);

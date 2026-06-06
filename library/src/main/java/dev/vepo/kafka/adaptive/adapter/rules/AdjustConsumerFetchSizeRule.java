@@ -22,26 +22,26 @@ public class AdjustConsumerFetchSizeRule implements AdapterRule {
             var assignedPartitions = context.assignedPartitions();
             var brokersCounter = context.numBrokers();
             logger.info("Adjusting max.partition.fetch.bytes for {} partitions and {} brokers", assignedPartitions, brokersCounter);
-    
+
             var fetchMaxBytes = switch (context.instance()
                                                .originalConfigs()
                                                .getOrDefault(StreamsConfig.consumerPrefix(FETCH_MAX_BYTES_CONFIG),
                                                              DEFAULT_FETCH_MAX_BYTES)) {
-                                    case Integer i -> i;
-                                    case Number n -> n.intValue();
-                                    case String s -> Integer.parseInt(s);
-                                    default -> DEFAULT_FETCH_MAX_BYTES;
-                                };
-    
+                case Integer i -> i;
+                case Number n -> n.intValue();
+                case String s -> Integer.parseInt(s);
+                default -> DEFAULT_FETCH_MAX_BYTES;
+            };
+
             var maxPartitionFetchBytes = switch (context.instance()
                                                         .originalConfigs()
                                                         .getOrDefault(StreamsConfig.consumerPrefix(MAX_PARTITION_FETCH_BYTES_CONFIG),
                                                                       DEFAULT_MAX_PARTITION_FETCH_BYTES)) {
-                                             case Integer i -> i;
-                                             case Number n -> n.intValue();
-                                             case String s -> Integer.parseInt(s);
-                                             default -> DEFAULT_MAX_PARTITION_FETCH_BYTES;
-                                         };
+                case Integer i -> i;
+                case Number n -> n.intValue();
+                case String s -> Integer.parseInt(s);
+                default -> DEFAULT_MAX_PARTITION_FETCH_BYTES;
+            };
             logger.info("Current max.partition.fetch.bytes={} and fetch.max.bytes={}", maxPartitionFetchBytes, fetchMaxBytes);
             // max.partition.fetch.bytes should not be greater than fetch.max.bytes
             var recommendedMaxPartitionFetchBytes = Math.min((fetchMaxBytes * brokersCounter) / assignedPartitions, fetchMaxBytes);

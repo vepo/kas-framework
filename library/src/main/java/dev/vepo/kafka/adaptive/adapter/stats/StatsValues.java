@@ -11,8 +11,7 @@ public class StatsValues {
 
     private static final Logger logger = LoggerFactory.getLogger(StatsValues.class);
 
-    private record Point(double x, double y) {
-    }
+    private record Point(double x, double y) {}
 
     public class Regression {
 
@@ -85,9 +84,8 @@ public class StatsValues {
         // This is not called all the time
         var regression = new SimpleRegression(true);
         regression.addData(values.stream()
-                                 .map(v -> new double[] {
-                                     v.x(),
-                                     v.y() })
+                                 .map(v -> new double[] { v.x(), v.y()
+                                 })
                                  .toArray(double[][]::new));
         // logger.info("Regression: slope={}", regression.getSlope());
         return new Regression(regression);

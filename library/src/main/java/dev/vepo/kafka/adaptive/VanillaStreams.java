@@ -75,13 +75,13 @@ public class VanillaStreams implements Streams {
         return inputTopics.updateAndGet(value -> {
             if (Objects.nonNull(value)) {
                 return this.topology.describe()
-                        .subtopologies()
-                        .stream()
-                        .flatMap(s -> s.nodes().stream())
-                        .filter(n -> n instanceof Source)
-                        .map(n -> (Source) n)
-                        .flatMap(source -> source.topicSet().stream())
-                        .collect(Collectors.toSet());
+                                    .subtopologies()
+                                    .stream()
+                                    .flatMap(s -> s.nodes().stream())
+                                    .filter(n -> n instanceof Source)
+                                    .map(n -> (Source) n)
+                                    .flatMap(source -> source.topicSet().stream())
+                                    .collect(Collectors.toSet());
             }
             return value;
         });

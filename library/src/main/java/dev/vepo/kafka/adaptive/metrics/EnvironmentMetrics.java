@@ -34,13 +34,14 @@ public class EnvironmentMetrics {
             var cgroupContent = new String(Files.readAllBytes(cgroupPath)).trim();
             logger.info("file {} content {}", cgroupPath, cgroupContent);
             if (!cgroupContent.startsWith("0::/")) {
-                throw new IllegalStateException("Not a valid cgroup v2 file: " + cgroupContent);    
+                throw new IllegalStateException("Not a valid cgroup v2 file: " + cgroupContent);
             }
             return cgroupContent.substring("0::/".length());
         } catch (IOException e) {
             throw new IllegalStateException("Cannot read cgroup file", e);
         }
     }
+
     private static long loadTotalMemory() {
         try {
             // it can be 'max', read from another place
@@ -48,10 +49,10 @@ public class EnvironmentMetrics {
             var memorySliceConfig = Paths.get("/sys/fs/cgroup", cgroup, "memory.max");
             if (!memorySliceConfig.toFile().exists()) {
                 // sometimes the memory.max file resides inside the main cgroup
-                var cgroupPath = Paths.get(cgroup);                
+                var cgroupPath = Paths.get(cgroup);
                 if (cgroupPath.getNameCount() > 1 && Paths.get("/sys/fs/cgroup", cgroupPath.getName(0).toString(), "memory.max")
-                         .toFile()
-                         .exists()) {
+                                                          .toFile()
+                                                          .exists()) {
                     memorySliceConfig = Paths.get("/sys/fs/cgroup", cgroupPath.getName(0).toString(), "memory.max");
                 }
             }
@@ -61,7 +62,7 @@ public class EnvironmentMetrics {
                 if (!"max".equalsIgnoreCase(maxMemoryContent)) {
                     return Long.parseLong(maxMemoryContent);
                 }
-            } 
+            }
             // trust on JVM!!!
             return Runtime.getRuntime().maxMemory();
         } catch (NumberFormatException | IOException e) {
@@ -81,8 +82,7 @@ public class EnvironmentMetrics {
         }
     }
 
-    public EnvironmentMetrics() {
-    }
+    public EnvironmentMetrics() {}
 
     public double cpuUsed() {
         // If no cache is used, a lot of 0 values are returned
@@ -100,12 +100,14 @@ public class EnvironmentMetrics {
     }
 
     public long memoryTotal() {
-        // return memoryBean.getHeapMemoryUsage().getMax() + memoryBean.getNonHeapMemoryUsage().getMax();
+        // return memoryBean.getHeapMemoryUsage().getMax() +
+        // memoryBean.getNonHeapMemoryUsage().getMax();
         return totalMemory;
     }
 
     public long memoryUsed() {
-        // return memoryBean.getHeapMemoryUsage().getUsed() + memoryBean.getNonHeapMemoryUsage().getUsed();
+        // return memoryBean.getHeapMemoryUsage().getUsed() +
+        // memoryBean.getNonHeapMemoryUsage().getUsed();
         updateMemoryValues();
         return usedMemory;
     }
@@ -119,18 +121,18 @@ public class EnvironmentMetrics {
                         throw new IllegalStateException("Invalid content of statm: " + Arrays.toString(statmContent));
                     }
                     long totalResidentMemory = Long.parseLong(statmContent[1]) * pageSize;
-                        
+
                     // Get heap usage from JMX
                     var heapUsage = memoryBean.getHeapMemoryUsage();
                     long usedHeap = heapUsage.getUsed();
                     long committedHeap = heapUsage.getCommitted();
                     long freeHeap = committedHeap - usedHeap;
-                    
+
                     // Subtract free heap from total resident memory
                     usedMemory = totalResidentMemory - freeHeap;
                     lastMemoryUsed = System.nanoTime();
                 } catch (IOException ioe) {
-                    throw new IllegalStateException("Cannot load /proc/" + PID +"/statm", ioe);
+                    throw new IllegalStateException("Cannot load /proc/" + PID + "/statm", ioe);
                 }
             }
         }

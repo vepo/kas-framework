@@ -12,7 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CommandServer {
-    public static enum Command{ START, STOP, DONE }
+    public static enum Command {
+        START, STOP, DONE
+    }
 
     @FunctionalInterface
     public interface Callback {
@@ -34,7 +36,7 @@ public class CommandServer {
         serverSocket = new ServerSocket(port);
         running.set(true);
         logger.info("Server started on port {}", port);
-        
+
         while (running.get() && !serverSocket.isClosed()) {
             Socket clientSocket = serverSocket.accept();
             processConnection(clientSocket);
@@ -42,7 +44,7 @@ public class CommandServer {
         logger.info("Server is done! Closing...");
         stop();
     }
-    
+
     public void stop() throws IOException {
         running.set(false);
         if (serverSocket != null && !serverSocket.isClosed()) {
@@ -50,19 +52,19 @@ public class CommandServer {
         }
         logger.info("Server stopped");
     }
-    
+
     private void processConnection(Socket clientSocket) {
         try (var out = new PrintWriter(clientSocket.getOutputStream(), true);
                 var in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-            
+
             String inputLine;
             out.println("SERVER: Ready for commands (START, STOP, DONE)");
-            
+
             while (this.running.get() && (inputLine = in.readLine()) != null) {
                 logger.info("Received command: {}", inputLine);
                 out.println(processCommand(inputLine));
             }
-            
+
             logger.info("Connection is done!");
         } catch (IOException e) {
             logger.error("Client handler error!", e);
@@ -76,7 +78,7 @@ public class CommandServer {
             }
         }
     }
-    
+
     private String processCommand(String command) {
         String type = "";
         String arguments = "";
@@ -93,7 +95,7 @@ public class CommandServer {
                 } else {
                     type = parts[1];
                 }
-            } 
+            }
         }
         return switch (command.toUpperCase()) {
             case "START" -> {

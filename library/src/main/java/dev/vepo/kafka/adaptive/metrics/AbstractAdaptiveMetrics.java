@@ -67,22 +67,22 @@ public abstract class AbstractAdaptiveMetrics implements MetricsReporter {
                 if (value.metricName().tags().containsKey("topic")
                         && value.metricName().tags().containsKey("partition")) {
                     process(new PerformanceMetric(key.scope(),
-                            key.name(),
-                            value.metricName().tags().get("client-id"),
-                            statValue,
-                            value.metricName().tags().get("topic"),
-                            Integer.valueOf(value.metricName().tags().get("partition"))));
+                                                  key.name(),
+                                                  value.metricName().tags().get("client-id"),
+                                                  statValue,
+                                                  value.metricName().tags().get("topic"),
+                                                  Integer.valueOf(value.metricName().tags().get("partition"))));
                 } else if (value.metricName().tags().containsKey("topic")) {
                     process(new PerformanceMetric(key.scope(),
-                            key.name(),
-                            value.metricName().tags().get("client-id"),
-                            statValue,
-                            value.metricName().tags().get("topic")));
+                                                  key.name(),
+                                                  value.metricName().tags().get("client-id"),
+                                                  statValue,
+                                                  value.metricName().tags().get("topic")));
                 } else {
                     process(new PerformanceMetric(key.scope(),
-                            key.name(),
-                            value.metricName().tags().get("client-id"),
-                            statValue));
+                                                  key.name(),
+                                                  value.metricName().tags().get("client-id"),
+                                                  statValue));
                 }
             }
         });
@@ -182,41 +182,35 @@ public abstract class AbstractAdaptiveMetrics implements MetricsReporter {
     }
 
     private boolean watched(MetricName metricName) {
-        if (metricName.tags().containsKey("client-id") && 
-            metricName.tags().get("client-id").endsWith("-restore-consumer")) {
+        if (metricName.tags().containsKey("client-id") &&
+                metricName.tags().get("client-id").endsWith("-restore-consumer")) {
             return false;
         }
         return switch (metricName) {
 
             // Consumer metrics
             case MetricName name when name.name().equals("records-lag") &&
-                    name.group().equals("consumer-fetch-manager-metrics") ->
-                true;
+                    name.group().equals("consumer-fetch-manager-metrics") -> true;
 
             case MetricName name when name.name().equals("records-consumed-rate") &&
                     name.group().equals("consumer-fetch-manager-metrics") &&
-                    name.tags().containsKey("topic") ->
-                true;
+                    name.tags().containsKey("topic") -> true;
 
             case MetricName name when name.name().equals("assigned-partitions") &&
-                    name.group().equals("consumer-coordinator-metrics") ->
-                true;
+                    name.group().equals("consumer-coordinator-metrics") -> true;
 
             case MetricName name when name.name().equals("fetch-size-avg") &&
                     name.group().equals("consumer-fetch-manager-metrics") &&
-                    name.tags().containsKey("topic") ->
-                true;
+                    name.tags().containsKey("topic") -> true;
             case MetricName name when name.name().equals("last-poll-seconds-ago") &&
                     name.group().equals("consumer-metrics") -> true;
 
             // Producer metrics
             case MetricName name when producerMetricsWatched(name.name()) &&
-                    name.group().equals("producer-metrics") ->
-                true;
+                    name.group().equals("producer-metrics") -> true;
             // Stream metrics
             case MetricName name when name.name().equals("alive-stream-threads")
-                    && name.group().equals("stream-metrics") ->
-                true;
+                    && name.group().equals("stream-metrics") -> true;
             case MetricName name when name.name().equals("request-latency-avg") -> true;
 
             default -> false;

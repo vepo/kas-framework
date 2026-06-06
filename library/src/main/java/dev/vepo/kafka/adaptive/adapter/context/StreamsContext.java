@@ -17,13 +17,13 @@ import dev.vepo.kafka.adaptive.adapter.stats.StatsKey.TopicStatsKey;
 import dev.vepo.kafka.adaptive.adapter.stats.StatsValues;
 
 public record StreamsContext(KafkaStreams.State streams, ThroughputState throughput, ResourcesState resources,
-        Map<StatsKey, StatsValues> stats, Streams instance) {
+                             Map<StatsKey, StatsValues> stats, Streams instance) {
 
     public Stream<StatsValues> lagHistory() {
         return stats.entrySet()
-                .stream()
-                .filter(e -> e.getKey() instanceof PartitionStatsKey psk && psk.name().equals("records-lag"))
-                .map(Entry::getValue);
+                    .stream()
+                    .filter(e -> e.getKey() instanceof PartitionStatsKey psk && psk.name().equals("records-lag"))
+                    .map(Entry::getValue);
     }
 
     public Double accumulatedLag() {
@@ -36,7 +36,6 @@ public record StreamsContext(KafkaStreams.State streams, ThroughputState through
                     .sum();
     }
 
-
     public Double accumulatedThroughput() {
         return stats.entrySet()
                     .stream()
@@ -48,66 +47,65 @@ public record StreamsContext(KafkaStreams.State streams, ThroughputState through
 
     private void clearClientMetrics() {
         stats.entrySet()
-               .stream()
-               .filter(e -> e.getKey() instanceof PartitionStatsKey || 
-                            e.getKey() instanceof JvmStatsKey || 
-                            e.getKey() instanceof ClientStatsKey ||
-                            (e.getKey() instanceof TopicStatsKey tsk && !tsk.broker()))
-               .map(Entry::getValue)
-               .forEach(StatsValues::clear);
+             .stream()
+             .filter(e -> e.getKey() instanceof PartitionStatsKey ||
+                     e.getKey() instanceof JvmStatsKey ||
+                     e.getKey() instanceof ClientStatsKey ||
+                     (e.getKey() instanceof TopicStatsKey tsk && !tsk.broker()))
+             .map(Entry::getValue)
+             .forEach(StatsValues::clear);
 
     }
 
     public double cpuUsage() {
         return stats.entrySet()
-                      .stream()
-                      .filter(e -> e.getKey() instanceof JvmStatsKey psk && psk.name().equals("cpu-used"))
-                      .map(Entry::getValue)
-                      .mapToDouble(StatsValues::average)
-                      .average()
-                      .orElse(0.0);
+                    .stream()
+                    .filter(e -> e.getKey() instanceof JvmStatsKey psk && psk.name().equals("cpu-used"))
+                    .map(Entry::getValue)
+                    .mapToDouble(StatsValues::average)
+                    .average()
+                    .orElse(0.0);
     }
 
     public double memoryUsage() {
         return stats.entrySet()
-                      .stream()
-                      .filter(e -> e.getKey() instanceof JvmStatsKey pmk && pmk.name().equals("memory-used"))
-                      .map(Entry::getValue)
-                      .mapToDouble(StatsValues::max)
-                      .average()
-                      .orElse(0.0);
+                    .stream()
+                    .filter(e -> e.getKey() instanceof JvmStatsKey pmk && pmk.name().equals("memory-used"))
+                    .map(Entry::getValue)
+                    .mapToDouble(StatsValues::max)
+                    .average()
+                    .orElse(0.0);
     }
 
     public double cpuAvailable() {
         return stats.entrySet()
-                      .stream()
-                      .filter(e -> e.getKey() instanceof JvmStatsKey pmk && pmk.name().equals("cpu-total"))
-                      .map(Entry::getValue)
-                      .mapToDouble(StatsValues::average)
-                      .average()
-                      .orElse(0.0);
+                    .stream()
+                    .filter(e -> e.getKey() instanceof JvmStatsKey pmk && pmk.name().equals("cpu-total"))
+                    .map(Entry::getValue)
+                    .mapToDouble(StatsValues::average)
+                    .average()
+                    .orElse(0.0);
     }
 
     public double memoryAvailable() {
         return stats.entrySet()
-                      .stream()
-                      .filter(e -> e.getKey() instanceof JvmStatsKey pmk && pmk.name().equals("memory-total"))
-                      .map(Entry::getValue)
-                      .mapToDouble(StatsValues::average)
-                      .average()
-                      .orElse(0.0);
+                    .stream()
+                    .filter(e -> e.getKey() instanceof JvmStatsKey pmk && pmk.name().equals("memory-total"))
+                    .map(Entry::getValue)
+                    .mapToDouble(StatsValues::average)
+                    .average()
+                    .orElse(0.0);
     }
 
     public int assignedPartitions() {
         return (int) stats.entrySet()
-                    .stream()
-                    .filter(e -> e.getKey() instanceof ClientStatsKey csk && csk.name().equals("assigned-partitions"))
-                    .map(Entry::getValue)
-                    .mapToInt(stats -> stats.last().intValue())
-                    .average()
-                    .orElse(1.0);
+                          .stream()
+                          .filter(e -> e.getKey() instanceof ClientStatsKey csk && csk.name().equals("assigned-partitions"))
+                          .map(Entry::getValue)
+                          .mapToInt(stats -> stats.last().intValue())
+                          .average()
+                          .orElse(1.0);
     }
-
 
     public double averageWaitingThreads() {
         return stats.entrySet()

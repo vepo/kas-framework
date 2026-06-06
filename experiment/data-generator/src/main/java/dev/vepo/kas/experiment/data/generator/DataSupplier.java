@@ -50,10 +50,10 @@ public class DataSupplier {
     }
 
     private <T> T handle(Exception ex) {
-                System.err.println("Error opening stream...");
-                ex.printStackTrace();
-                System.exit(-1);
-                return null;
+        System.err.println("Error opening stream...");
+        ex.printStackTrace();
+        System.exit(-1);
+        return null;
     }
 
     public TaxiTrip next() {

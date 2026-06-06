@@ -16,3 +16,22 @@ if [ ! -f "./dataset/${FILE_NAME}.json" ]; then
 else
     echo "File already exists: ${FILE_NAME}.json"
 fi
+
+if [ ! -f "./dataset/images-dataset.zip" ]; then
+    echo "Downloading image dataset..."
+    curl -L -o ./dataset/images-dataset.zip\
+    https://www.kaggle.com/api/v1/datasets/download/pavansanagapati/images-dataset
+else
+    echo "File already exists: images-dataset.zip"
+fi
+
+# Unzip the images dataset if it hasn't been unzipped yet
+if [ -f "./dataset/images-dataset.zip" ]; then
+    if [ ! -d "./dataset/images-dataset" ]; then
+        echo "Unzipping images-dataset.zip ..."
+        unzip ./dataset/images-dataset.zip -d ./dataset/images-dataset
+        echo "Unzipped to ./dataset/images-dataset/"
+    else
+        echo "Images dataset already unzipped: ./dataset/images-dataset/"
+    fi
+fi

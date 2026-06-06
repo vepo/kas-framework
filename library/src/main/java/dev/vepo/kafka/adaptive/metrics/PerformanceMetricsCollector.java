@@ -16,7 +16,7 @@ public class PerformanceMetricsCollector extends AbstractAdaptiveMetrics {
     protected void process(PerformanceMetric metric) {
         recorder.feed(metric);
     }
-    
+
     @Override
     public void configure(Map<String, ?> configs) {
         var statsFolder = configs.get("metrics.stats.folder");

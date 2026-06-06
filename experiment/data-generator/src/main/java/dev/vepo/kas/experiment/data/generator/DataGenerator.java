@@ -2,6 +2,7 @@ package dev.vepo.kas.experiment.data.generator;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
@@ -29,7 +30,7 @@ public class DataGenerator {
     private static final String RAW_TOPIC = "raw-input";
     private static final String BOOTSTRAP_SERVERS = "kafka-0:9092,kafka-1:9094,kafka-2:9096";
     private static final int THREADS = Runtime.getRuntime().availableProcessors() * 2;
-    private static final int TARGET_RATE_PER_THREAD = 40_000 / THREADS;
+    private static final int TARGET_RATE_PER_THREAD = 100_000 / THREADS;
     private static final int BATCH_SIZE = 25;
 
     @FunctionalInterface
@@ -39,7 +40,7 @@ public class DataGenerator {
 
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
         var generator = new DataGenerator(THREADS);
-        try(var executor = Executors.newSingleThreadExecutor()) {
+        try (var executor = Executors.newSingleThreadExecutor()) {
             var server = new CommandServer((command, type, arguments) -> {
                 switch (command) {
                     case START:
@@ -78,34 +79,33 @@ public class DataGenerator {
             logger.warn("DataGenerator is already started");
             return;
         }
-        
+
         running.set(true);
-        
+
         Runtime.getRuntime()
                .addShutdownHook(new Thread(() -> {
                    logger.info("Shutdown hook triggered");
                    this.stop();
                }));
-        
+
         executorService = new ThreadPoolExecutor(numThreads,
-                                                numThreads,
-                                                0L, TimeUnit.MILLISECONDS,
-                                                new LinkedBlockingQueue<>(10000),
-                                                new ThreadPoolExecutor.CallerRunsPolicy());
-        
+                                                 numThreads,
+                                                 0L, TimeUnit.MILLISECONDS,
+                                                 new LinkedBlockingQueue<>(10000),
+                                                 new ThreadPoolExecutor.CallerRunsPolicy());
+
         try {
             var completions = IntStream.range(0, numThreads)
                                        .mapToObj(t -> executorService.submit(() -> runners.get(type).run(t, arguments)))
                                        .toList();
-            
+
             // Wait for all tasks to complete (which happens when running becomes false)
             for (var c : completions) {
                 c.get();
             }
-            
+
             logger.info("All producer threads completed");
             latch.countDown();
-            
         } catch (InterruptedException e) {
             logger.error("Data generation interrupted", e);
             Thread.currentThread().interrupt();
@@ -121,9 +121,9 @@ public class DataGenerator {
             logger.info("DataGenerator is already stopped");
             return;
         }
-        
+
         logger.info("Stopping DataGenerator...");
-        
+
         // Shutdown executor service
         if (executorService != null) {
             try {
@@ -138,10 +138,10 @@ public class DataGenerator {
                 Thread.currentThread().interrupt();
             }
         }
-        
+
         // Count down the latch to release any waiting threads
         latch.countDown();
-        
+
         logger.info("DataGenerator stopped successfully");
     }
 
@@ -201,7 +201,7 @@ public class DataGenerator {
                 // Periodic reporting (every second)
                 if (System.currentTimeMillis() - lastReportTime >= 5000) {
                     logger.info("Thread[{}]: Sent {} messages ({} msg/sec)",
-                                      thread, totalMessagesSent, totalMessagesSent / ((System.currentTimeMillis() - lastReportTime) / 1000.0));
+                                thread, totalMessagesSent, totalMessagesSent / ((System.currentTimeMillis() - lastReportTime) / 1000.0));
                     totalMessagesSent = 0;
                     lastReportTime = System.currentTimeMillis();
                 }
@@ -230,9 +230,9 @@ public class DataGenerator {
         props.put(ProducerConfig.ACKS_CONFIG, "1");
         props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
-        var dataSupplier = new RawDataSupplier(Integer.parseInt(arguments));
 
-        try (var producer = new KafkaProducer<byte[], byte[]>(props)) {
+        try (var producer = new KafkaProducer<byte[], byte[]>(props);
+                var dataSupplier = new RawDataSupplier(Paths.get("/", "dataset"), Integer.parseInt(arguments))) {
             // Rate control
             logger.info("Starting RAW producer thread [{}]: {} msg/sec", thread, TARGET_RATE_PER_THREAD);
 
@@ -268,7 +268,7 @@ public class DataGenerator {
                 // Periodic reporting (every second)
                 if (System.currentTimeMillis() - lastReportTime >= 5000) {
                     logger.info("Thread[{}]: Sent {} messages ({} msg/sec)",
-                                      thread, totalMessagesSent, totalMessagesSent / ((System.currentTimeMillis() - lastReportTime) / 1000.0));
+                                thread, totalMessagesSent, totalMessagesSent / ((System.currentTimeMillis() - lastReportTime) / 1000.0));
                     totalMessagesSent = 0;
                     lastReportTime = System.currentTimeMillis();
                 }

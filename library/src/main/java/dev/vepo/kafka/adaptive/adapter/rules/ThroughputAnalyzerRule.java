@@ -14,10 +14,12 @@ public class ThroughputAnalyzerRule implements AdapterRule {
         var lagHistory = context.lagHistory().toList();
         if (lagHistory.stream().allMatch(StatsValues::hasData)) {
             if (lagHistory.stream().map(StatsValues::regression).anyMatch(regression -> regression.slope() > 0)) {
-                logger.info("Throughput is unsustainable, slope={}", lagHistory.stream().map(StatsValues::regression).mapToDouble(StatsValues.Regression::slope).max());
+                logger.info("Throughput is unsustainable, slope={}",
+                            lagHistory.stream().map(StatsValues::regression).mapToDouble(StatsValues.Regression::slope).max());
                 return context.withThroughput(ThroughputState.UNSUSTAINABLE);
             } else {
-                logger.info("Throughput is sustainable, slope={}", lagHistory.stream().map(StatsValues::regression).mapToDouble(StatsValues.Regression::slope).max());
+                logger.info("Throughput is sustainable, slope={}",
+                            lagHistory.stream().map(StatsValues::regression).mapToDouble(StatsValues.Regression::slope).max());
                 return context.withThroughput(ThroughputState.SUSTAINABLE);
             }
         }

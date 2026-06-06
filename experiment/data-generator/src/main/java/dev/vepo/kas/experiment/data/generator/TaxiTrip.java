@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * Sample data.
- * 
+ *
  * <pre>
  *   {
  *     "Airport_fee":0,
@@ -36,33 +36,31 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
  *     "trip_distance":1.39
  *   }
  * </pre>
- * 
+ *
  * @see <a href=
  *      "https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf">Yellow
  *      Trips Data Dictionary</a>
  */
 public record TaxiTrip(@JsonProperty("VendorID") int vendorId,
-        @JsonDeserialize(using = InstantToLongDeserializer.class)
-        @JsonProperty("tpep_pickup_datetime") long pickupTimestamp,
-        @JsonDeserialize(using = InstantToLongDeserializer.class)
-        @JsonProperty("tpep_dropoff_datetime") long dropTimestamp,
-        @JsonProperty("passenger_count") int passengerCount,
-        @JsonProperty("trip_distance") double tripDistance,
-        @JsonProperty("RatecodeID") int ratecodeID,
-        @JsonProperty("store_and_fwd_flag") String storeAndFwdFlag,
-        @JsonProperty("PULocationID") int puLocationID,
-        @JsonProperty("DOLocationID") int doLocationID,
-        @JsonProperty("payment_type") int paymentType,
-        @JsonProperty("fare_amount") double fareAmount,
-        @JsonProperty("extra") double extra,
-        @JsonProperty("mta_tax") double mtaTax,
-        @JsonProperty("tip_amount") double tipAmount,
-        @JsonProperty("tolls_amount") double tollsAmount,
-        @JsonProperty("improvement_surcharge") double improvementSurcharge,
-        @JsonProperty("total_amount") double totalAmount,
-        @JsonProperty("congestion_surcharge") double congestionSurcharge,
-        @JsonProperty("Airport_fee") double airportFee,
-        @JsonProperty("cbd_congestion_fee") double cbdCongestionFee) {
+                       @JsonDeserialize(using = InstantToLongDeserializer.class) @JsonProperty("tpep_pickup_datetime") long pickupTimestamp,
+                       @JsonDeserialize(using = InstantToLongDeserializer.class) @JsonProperty("tpep_dropoff_datetime") long dropTimestamp,
+                       @JsonProperty("passenger_count") int passengerCount,
+                       @JsonProperty("trip_distance") double tripDistance,
+                       @JsonProperty("RatecodeID") int ratecodeID,
+                       @JsonProperty("store_and_fwd_flag") String storeAndFwdFlag,
+                       @JsonProperty("PULocationID") int puLocationID,
+                       @JsonProperty("DOLocationID") int doLocationID,
+                       @JsonProperty("payment_type") int paymentType,
+                       @JsonProperty("fare_amount") double fareAmount,
+                       @JsonProperty("extra") double extra,
+                       @JsonProperty("mta_tax") double mtaTax,
+                       @JsonProperty("tip_amount") double tipAmount,
+                       @JsonProperty("tolls_amount") double tollsAmount,
+                       @JsonProperty("improvement_surcharge") double improvementSurcharge,
+                       @JsonProperty("total_amount") double totalAmount,
+                       @JsonProperty("congestion_surcharge") double congestionSurcharge,
+                       @JsonProperty("Airport_fee") double airportFee,
+                       @JsonProperty("cbd_congestion_fee") double cbdCongestionFee) {
 
     private static final ObjectWriter writer = new ObjectMapper().writerFor(TaxiTrip.class);
 
@@ -82,24 +80,24 @@ public record TaxiTrip(@JsonProperty("VendorID") int vendorId,
 
     public TaxiTrip shift() {
         return new TaxiTrip(vendorId,
-                Instant.now().minusMillis(durationInMillis()).toEpochMilli(),
-                Instant.now().toEpochMilli(),
-                passengerCount,
-                tripDistance,
-                ratecodeID,
-                storeAndFwdFlag,
-                puLocationID,
-                doLocationID,
-                paymentType,
-                fareAmount,
-                extra,
-                mtaTax,
-                tripDistance,
-                tollsAmount,
-                improvementSurcharge,
-                totalAmount,
-                congestionSurcharge,
-                airportFee,
-                cbdCongestionFee);
+                            Instant.now().minusMillis(durationInMillis()).toEpochMilli(),
+                            Instant.now().toEpochMilli(),
+                            passengerCount,
+                            tripDistance,
+                            ratecodeID,
+                            storeAndFwdFlag,
+                            puLocationID,
+                            doLocationID,
+                            paymentType,
+                            fareAmount,
+                            extra,
+                            mtaTax,
+                            tripDistance,
+                            tollsAmount,
+                            improvementSurcharge,
+                            totalAmount,
+                            congestionSurcharge,
+                            airportFee,
+                            cbdCongestionFee);
     }
 }

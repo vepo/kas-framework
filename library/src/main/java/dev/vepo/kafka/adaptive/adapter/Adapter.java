@@ -82,7 +82,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         if (Objects.nonNull(verifyTask)) {
             this.verifyTask.cancel(true);
         }
-        
+
         taskExecutor.shutdown();
         if (!taskExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
             taskExecutor.shutdownNow();
@@ -100,7 +100,7 @@ public class Adapter implements MetricListener, Configurable, StateListener {
     public void configure(Map<String, ?> props) {
         logger.info("Setting up adapter with {}", props);
         var statsFolder = props.get("metrics.stats.folder");
-        if (Objects.nonNull(statsFolder)) {            
+        if (Objects.nonNull(statsFolder)) {
             this.recorder = new MetricsRecorder(Paths.get(statsFolder.toString()));
         }
 
@@ -114,12 +114,13 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         } else {
             this.rules.addAll(configuredRules);
         }
+        
         logger.info("Rules: {}", rules);
         this.maxHistorySize = configs.getInt(ADAPTIVE_ADAPTER_HISTORY_SIZE_MAX_CONFIG);
         this.minHistorySize = configs.getInt(ADAPTIVE_ADAPTER_HISTORY_SIZE_MIN_CONFIG);
         var frequencyMs = configs.getLong(ADAPTIVE_ADAPTER_FREQUENCY_MS_CONFIG);
         logger.info("Adapter configured! minHistory={} maxHistory={} frequency={}", minHistorySize, maxHistorySize, frequencyMs);
-        verifyTask = taskExecutor.scheduleAtFixedRate(this::verify, frequencyMs, frequencyMs, TimeUnit.MILLISECONDS);       
+        verifyTask = taskExecutor.scheduleAtFixedRate(this::verify, frequencyMs, frequencyMs, TimeUnit.MILLISECONDS);
     }
 
     public void setup(Streams streams) {
@@ -142,7 +143,8 @@ public class Adapter implements MetricListener, Configurable, StateListener {
         logger.trace("New metric receive: {}", metric);
         switch (metric.context()) {
             case PARTITION:
-                metrics.computeIfAbsent(partition(metric.name(), metric.topic(), metric.partition()), (_key) -> new StatsValues(this.minHistorySize, this.maxHistorySize))
+                metrics.computeIfAbsent(partition(metric.name(), metric.topic(), metric.partition()),
+                                        (_key) -> new StatsValues(this.minHistorySize, this.maxHistorySize))
                        .add(metric.value(), metric.timestamp());
                 break;
             case CLIENT:
@@ -150,7 +152,8 @@ public class Adapter implements MetricListener, Configurable, StateListener {
                        .add(metric.value(), metric.timestamp());
                 break;
             case TOPIC:
-                metrics.computeIfAbsent(topic(metric.name(), metric.topic(), "broker".equalsIgnoreCase(metric.scope()), metric.clientId()), (_key) -> new StatsValues(this.minHistorySize, this.maxHistorySize))
+                metrics.computeIfAbsent(topic(metric.name(), metric.topic(), "broker".equalsIgnoreCase(metric.scope()), metric.clientId()),
+                                        (_key) -> new StatsValues(this.minHistorySize, this.maxHistorySize))
                        .add(metric.value(), metric.timestamp());
                 break;
             case BROKER:
@@ -184,8 +187,8 @@ public class Adapter implements MetricListener, Configurable, StateListener {
                                 Current state: {}
                                 Accumulated lag: {}
                                 Accumulated throughput: {}
-                                """, 
-                                context.throughput(), 
+                                """,
+                                context.throughput(),
                                 String.format("%.2f", context.accumulatedLag()),
                                 String.format("%.2f", context.accumulatedThroughput()));
                     this.context = rules.stream()

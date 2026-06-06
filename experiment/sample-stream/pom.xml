@@ -19,7 +19,7 @@
     <name>KAS :: Experiment :: Sample Stream</name>
 
     <properties>
-        <main.class>dev.vepo.kas.experiment.stream.StreamPerformanceEvaluation</main.class>
+        <main.class>dev.vepo.adaptive.experiment.stream.StreamPerformanceEvaluation</main.class>
     </properties>
 
     <dependencies>

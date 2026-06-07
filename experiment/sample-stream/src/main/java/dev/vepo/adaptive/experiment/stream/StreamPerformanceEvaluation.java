@@ -76,7 +76,7 @@ public class StreamPerformanceEvaluation implements Runnable {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(StreamPerformanceEvaluation.class);
-    private static final int TEST_DURATION_IN_MINUTES = 8;
+    private static final int TEST_DURATION_IN_MINUTES = 20;
     private static final CommandClient COMMAND = new CommandClient();
     private static final String[] TOPICS = new String[] { "raw-output", "raw-input", "raw-by-hash-repartition", "nyc-taxi-dashboard-fare",
                                                           "nyc-taxi-dashboard-tips", "nyc-taxi-dashboard-passengers", "nyc-taxi-trips",

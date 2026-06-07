@@ -28,6 +28,8 @@ This guide provides step-by-step instructions for executing the experimental eva
 
 ```bash
 # Clone the repository
+ssh-keygen -t ed25519 -C "victor.perticarrari@gmail.com"
+## setup key on github
 git clone git@github.com:vepo/kas-framework.git
 cd kas-framework
 
@@ -96,5 +98,5 @@ sdk install maven 3.9.9
 # Parquet-tools for result analysis
 export PATH=$PATH:$HOME/go/bin
 echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc
-go install github.com/hangxie/parquet-tools@latest
+go install github.com/hangxie/parquet-tools@v1.46.3
 ```
